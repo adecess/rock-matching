@@ -1,9 +1,9 @@
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct OrderId(u64);
+pub struct OrderId(pub u64);
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Price(pub u64);
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Price(u64);
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Qty(u64);
+pub struct Qty(pub u64);
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Side {
     Buy,
