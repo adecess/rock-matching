@@ -13,18 +13,18 @@ pub enum Side {
 #[derive(Debug, Clone)]
 pub struct Order {
     pub order_id: OrderId,
+    pub side: Side,
     pub price: Price,
     pub quantity: Qty,
-    pub side: Side,
 }
 
 impl Order {
-    pub fn new(order_id: OrderId, price: Price, quantity: Qty, side: Side) -> Order {
+    pub fn new(order_id: OrderId, side: Side, price: Price, quantity: Qty) -> Order {
         Order {
             order_id,
+            side,
             quantity,
             price,
-            side,
         }
     }
 }

@@ -1,6 +1,19 @@
-use crate::engine::order::{Order, Price, Side};
+use crate::engine::order::{Order, OrderId, Price, Qty, Side};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, VecDeque};
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Event {
+    OrderTraded {
+        taker: OrderId,
+        maker: OrderId,
+        taker_side: Side,
+        price: Price,
+        quantity: Qty,
+    },
+    OrderAddedToBook(OrderId, Side, Price, Qty),
+    OrderCancelled(OrderId),
+}
 
 #[derive(Default)]
 pub struct OrderBook {
@@ -26,8 +39,10 @@ impl OrderBook {
         }
     }
 
-    fn match_limit_order(&mut self, incoming_order: Order) {
+    fn match_limit_order(&mut self, incoming_order: Order) -> Event {
+        let order_id = incoming_order.order_id;
         let order_price = incoming_order.price;
+        let order_quantity = incoming_order.quantity;
 
         match incoming_order.side {
             Side::Buy => {
@@ -35,11 +50,18 @@ impl OrderBook {
                     match price_level.key().cmp(&order_price) {
                         Ordering::Greater => {
                             self.add_to_book(order_price, Side::Buy, incoming_order);
+                            Event::OrderAddedToBook(
+                                order_id,
+                                Side::Buy,
+                                order_price,
+                                order_quantity,
+                            )
                         }
                         _ => todo!(),
                     }
                 } else {
                     self.add_to_book(order_price, Side::Buy, incoming_order);
+                    Event::OrderAddedToBook(order_id, Side::Buy, order_price, order_quantity)
                 }
             }
             Side::Sell => {
@@ -47,11 +69,18 @@ impl OrderBook {
                     match price_level.key().cmp(&order_price) {
                         Ordering::Less => {
                             self.add_to_book(order_price, Side::Sell, incoming_order);
+                            Event::OrderAddedToBook(
+                                order_id,
+                                Side::Sell,
+                                order_price,
+                                order_quantity,
+                            )
                         }
                         _ => todo!(),
                     }
                 } else {
                     self.add_to_book(order_price, Side::Sell, incoming_order);
+                    Event::OrderAddedToBook(order_id, Side::Sell, order_price, order_quantity)
                 }
             }
         }
@@ -68,9 +97,13 @@ mod tests {
         let mut order_book = OrderBook::default();
         let order_id = OrderId(0);
         let price = Price(100);
-        let order = Order::new(order_id, price, Qty(5), Side::Sell);
+        let order = Order::new(order_id, Side::Sell, price, Qty(5));
 
-        order_book.match_limit_order(order);
+        let event = order_book.match_limit_order(order);
+        assert_eq!(
+            event,
+            Event::OrderAddedToBook(order_id, Side::Sell, price, Qty(5))
+        );
         assert_eq!(order_book.sell_orders.len(), 1);
         assert_eq!(order_book.buy_orders.len(), 0);
     }
