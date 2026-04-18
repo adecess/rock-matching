@@ -13,6 +13,7 @@ pub enum Event {
     },
     OrderAddedToBook(OrderId, Side, Price, Qty),
     OrderCancelled(OrderId),
+    NoOrder,
 }
 
 #[derive(Default)]
@@ -45,25 +46,23 @@ impl OrderBook {
         let order_quantity = incoming_order.quantity;
 
         match incoming_order.side {
-            Side::Buy => {
-                if let Some(price_level) = self.sell_orders.first_entry() {
-                    match price_level.key().cmp(&order_price) {
+            Side::Buy => loop {
+                match self.sell_orders.first_entry() {
+                    Some(price_level) => match price_level.key().cmp(&order_price) {
                         Ordering::Greater => {
                             self.add_to_book(order_price, Side::Buy, incoming_order);
-                            Event::OrderAddedToBook(
+                            break Event::OrderAddedToBook(
                                 order_id,
                                 Side::Buy,
                                 order_price,
                                 order_quantity,
-                            )
+                            );
                         }
                         _ => todo!(),
-                    }
-                } else {
-                    self.add_to_book(order_price, Side::Buy, incoming_order);
-                    Event::OrderAddedToBook(order_id, Side::Buy, order_price, order_quantity)
+                    },
+                    None => break Event::NoOrder,
                 }
-            }
+            },
             Side::Sell => {
                 if let Some(price_level) = self.buy_orders.last_entry() {
                     match price_level.key().cmp(&order_price) {
