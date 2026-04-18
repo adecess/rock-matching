@@ -31,8 +31,8 @@ impl OrderBook {
 
         match incoming_order.side {
             Side::Buy => {
-                if let Some((price, _price_list)) = self.sell_orders.first_key_value() {
-                    match price.cmp(&order_price) {
+                if let Some(price_level) = self.sell_orders.first_entry() {
+                    match price_level.key().cmp(&order_price) {
                         Ordering::Greater => {
                             self.add_to_book(order_price, Side::Buy, incoming_order);
                         }
@@ -43,8 +43,8 @@ impl OrderBook {
                 }
             }
             Side::Sell => {
-                if let Some((price, _price_list)) = self.buy_orders.last_key_value() {
-                    match price.cmp(&order_price) {
+                if let Some(price_level) = self.buy_orders.last_entry() {
+                    match price_level.key().cmp(&order_price) {
                         Ordering::Less => {
                             self.add_to_book(order_price, Side::Sell, incoming_order);
                         }
