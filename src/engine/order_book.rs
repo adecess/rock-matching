@@ -1,7 +1,6 @@
 use crate::engine::order::{Order, OrderId, Price, Qty, Side};
 use std::cmp::{Ordering, min};
 use std::collections::{BTreeMap, VecDeque};
-use std::ops::Sub;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Event {
