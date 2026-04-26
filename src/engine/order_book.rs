@@ -1,6 +1,7 @@
 use crate::engine::order::{Order, OrderId, Price, Qty, Side};
 use std::cmp::{Ordering, min};
 use std::collections::{BTreeMap, VecDeque};
+use std::collections::btree_map::OccupiedEntry;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Event {
@@ -39,6 +40,13 @@ impl OrderBook {
         }
     }
 
+    fn pop_price_level(mut price_level: OccupiedEntry<Price, VecDeque<Order>>) {
+        price_level.get_mut().pop_front();
+        if price_level.get().is_empty() {
+            price_level.remove();
+        }
+    }
+
     fn match_limit_order(&mut self, mut incoming_order: Order) -> Vec<Event> {
         let mut events = Vec::new();
 
@@ -52,7 +60,9 @@ impl OrderBook {
                             break;
                         }
                         _ => {
-                            let resting_order = ask_price_level.get_mut().front_mut().unwrap();
+                            let resting_order = ask_price_level.get_mut().front_mut().expect(
+                                "There should be at least one order at this ask price level",
+                            );
                             let trade_size = min(incoming_order.quantity, resting_order.quantity);
 
                             events.push(Event::OrderTraded {
@@ -67,11 +77,7 @@ impl OrderBook {
                             incoming_order.quantity = incoming_order.quantity - trade_size;
 
                             if resting_order.quantity == Qty(0) {
-                                ask_price_level.get_mut().pop_front();
-
-                                if ask_price_level.get_mut().is_empty() {
-                                    ask_price_level.remove();
-                                }
+                                Self::pop_price_level(ask_price_level);
                             }
                         }
                     }
@@ -91,23 +97,39 @@ impl OrderBook {
                 }
             }
             Side::Sell => {
+                while let Some(mut bid_price_level) = self.buy_orders.last_entry() {
+                    match bid_price_level.key().cmp(&incoming_order.price) {
+                        Ordering::Less => {
+                            break;
+                        }
+                        _ => {
+                            let resting_order = bid_price_level.get_mut().front_mut().expect(
+                                "There should be at least one order at this bid price level",
+                            );
+                            let trade_size = min(incoming_order.quantity, resting_order.quantity);
+
+                            events.push(Event::OrderTraded {
+                                taker: incoming_order.order_id,
+                                maker: resting_order.order_id,
+                                taker_side: Side::Sell,
+                                price: resting_order.price,
+                                quantity: trade_size,
+                            });
+
+                            incoming_order.quantity = incoming_order.quantity - trade_size;
+                            resting_order.quantity = resting_order.quantity - trade_size;
+
+                            if resting_order.quantity == Qty(0) {
+                                Self::pop_price_level(bid_price_level);
+                            }
+                        }
+                    }
+                }
+
                 let order_id = incoming_order.order_id;
                 let order_price = incoming_order.price;
                 let remaining_order_quantity = incoming_order.quantity;
-                if let Some(bid_price_level) = self.buy_orders.last_entry() {
-                    match bid_price_level.key().cmp(&order_price) {
-                        Ordering::Less => {
-                            self.add_to_book(order_price, Side::Sell, incoming_order);
-                            events.push(Event::OrderAddedToBook(
-                                order_id,
-                                Side::Sell,
-                                order_price,
-                                remaining_order_quantity,
-                            ));
-                        }
-                        _ => todo!(),
-                    }
-                } else {
+                if remaining_order_quantity > Qty(0) {
                     self.add_to_book(order_price, Side::Sell, incoming_order);
                     events.push(Event::OrderAddedToBook(
                         order_id,
@@ -204,7 +226,7 @@ mod tests {
 
     #[test]
     fn limit_buy_order_trades_with_partial_maker_fill_if_there_is_a_matching_sell_order_with_higher_quantity()
-     {
+    {
         let mut order_book = OrderBook::default();
         order_book.match_limit_order(Order::new(OrderId(0), Price(99), Qty(8), Side::Sell));
 
@@ -306,7 +328,7 @@ mod tests {
 
     #[test]
     fn limit_buy_order_trades_partially_if_there_are_not_enough_matching_sell_orders_at_different_price_levels()
-     {
+    {
         let mut order_book = OrderBook::default();
         order_book.match_limit_order(Order::new(OrderId(0), Price(99), Qty(1), Side::Sell));
         order_book.match_limit_order(Order::new(OrderId(1), Price(99), Qty(1), Side::Sell));
@@ -339,7 +361,7 @@ mod tests {
                     price: Price(100),
                     quantity: Qty(1)
                 },
-                Event::OrderAddedToBook(OrderId(3), Side::Buy, Price(100), Qty(2),)
+                Event::OrderAddedToBook(OrderId(3), Side::Buy, Price(100), Qty(2), )
             ]
         );
         assert_eq!(order_book.sell_orders.len(), 0);
