@@ -153,10 +153,7 @@ mod tests {
     #[test]
     fn limit_buy_order_trades_if_there_is_a_perfectly_matching_sell_order() {
         let mut order_book = OrderBook::default();
-        order_book.sell_orders.insert(
-            Price(99),
-            VecDeque::from([Order::new(OrderId(0), Price(99), Qty(5), Side::Sell)]),
-        );
+        order_book.match_limit_order(Order::new(OrderId(0), Price(99), Qty(5), Side::Sell));
 
         let incoming_buy_order = Order::new(OrderId(1), Price(100), Qty(5), Side::Buy);
 
@@ -178,13 +175,8 @@ mod tests {
     #[test]
     fn limit_buy_order_trades_if_there_are_enough_matching_sell_orders_at_the_same_price_level() {
         let mut order_book = OrderBook::default();
-        order_book.sell_orders.insert(
-            Price(99),
-            VecDeque::from([
-                Order::new(OrderId(0), Price(99), Qty(3), Side::Sell),
-                Order::new(OrderId(1), Price(99), Qty(2), Side::Sell),
-            ]),
-        );
+        order_book.match_limit_order(Order::new(OrderId(0), Price(99), Qty(3), Side::Sell));
+        order_book.match_limit_order(Order::new(OrderId(1), Price(99), Qty(2), Side::Sell));
 
         let incoming_buy_order = Order::new(OrderId(2), Price(100), Qty(5), Side::Buy);
 
@@ -215,14 +207,9 @@ mod tests {
     #[test]
     fn limit_buy_order_trades_if_there_are_enough_matching_sell_orders_at_different_price_levels() {
         let mut order_book = OrderBook::default();
-        order_book.sell_orders.insert(
-            Price(99),
-            VecDeque::from([
-                Order::new(OrderId(0), Price(99), Qty(1), Side::Sell),
-                Order::new(OrderId(1), Price(99), Qty(2), Side::Sell),
-                Order::new(OrderId(2), Price(100), Qty(2), Side::Sell),
-            ]),
-        );
+        order_book.match_limit_order(Order::new(OrderId(0), Price(99), Qty(1), Side::Sell));
+        order_book.match_limit_order(Order::new(OrderId(1), Price(99), Qty(2), Side::Sell));
+        order_book.match_limit_order(Order::new(OrderId(2), Price(100), Qty(2), Side::Sell));
 
         let incoming_buy_order = Order::new(OrderId(3), Price(100), Qty(5), Side::Buy);
 
@@ -261,14 +248,9 @@ mod tests {
     fn limit_buy_order_trades_partially_if_there_are_not_enough_matching_sell_orders_at_different_price_levels()
      {
         let mut order_book = OrderBook::default();
-        order_book.sell_orders.insert(
-            Price(99),
-            VecDeque::from([
-                Order::new(OrderId(0), Price(99), Qty(1), Side::Sell),
-                Order::new(OrderId(1), Price(99), Qty(1), Side::Sell),
-                Order::new(OrderId(2), Price(100), Qty(1), Side::Sell),
-            ]),
-        );
+        order_book.match_limit_order(Order::new(OrderId(0), Price(99), Qty(1), Side::Sell));
+        order_book.match_limit_order(Order::new(OrderId(1), Price(99), Qty(1), Side::Sell));
+        order_book.match_limit_order(Order::new(OrderId(2), Price(100), Qty(1), Side::Sell));
 
         let incoming_buy_order = Order::new(OrderId(3), Price(100), Qty(5), Side::Buy);
 
