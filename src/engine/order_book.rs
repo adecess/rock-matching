@@ -150,6 +150,37 @@ mod tests {
     }
 
     #[test]
+    fn limit_sell_order_and_limit_buy_order_both_rest_on_order_book_if_they_do_not_match() {
+        let mut order_book = OrderBook::default();
+        let sell_order = Order::new(OrderId(0), Price(100), Qty(5), Side::Sell);
+        let buy_order = Order::new(OrderId(1), Price(99), Qty(5), Side::Buy);
+
+        let sell_order_added = order_book.match_limit_order(sell_order);
+        assert_eq!(
+            sell_order_added.first(),
+            Some(&Event::OrderAddedToBook(
+                OrderId(0),
+                Side::Sell,
+                Price(100),
+                Qty(5)
+            ))
+        );
+
+        let buy_order_added = order_book.match_limit_order(buy_order);
+        assert_eq!(
+            buy_order_added.first(),
+            Some(&Event::OrderAddedToBook(
+                OrderId(1),
+                Side::Buy,
+                Price(99),
+                Qty(5)
+            ))
+        );
+        assert_eq!(order_book.sell_orders.len(), 1);
+        assert_eq!(order_book.buy_orders.len(), 1);
+    }
+
+    #[test]
     fn limit_buy_order_trades_if_there_is_a_perfectly_matching_sell_order() {
         let mut order_book = OrderBook::default();
         order_book.match_limit_order(Order::new(OrderId(0), Price(99), Qty(5), Side::Sell));
@@ -172,7 +203,8 @@ mod tests {
     }
 
     #[test]
-    fn limit_buy_order_trades_with_partial_maker_fill_if_there_is_a_matching_sell_order_with_higher_quantity() {
+    fn limit_buy_order_trades_with_partial_maker_fill_if_there_is_a_matching_sell_order_with_higher_quantity()
+     {
         let mut order_book = OrderBook::default();
         order_book.match_limit_order(Order::new(OrderId(0), Price(99), Qty(8), Side::Sell));
 
@@ -190,7 +222,10 @@ mod tests {
             }
         );
 
-        let price_level = order_book.sell_orders.get(&Price(99)).expect("price level should exist");
+        let price_level = order_book
+            .sell_orders
+            .get(&Price(99))
+            .expect("price level should exist");
         assert_eq!(order_book.sell_orders.len(), 1);
         assert_eq!(price_level.len(), 1);
         assert_eq!(price_level[0].quantity, Qty(3));
@@ -271,7 +306,7 @@ mod tests {
 
     #[test]
     fn limit_buy_order_trades_partially_if_there_are_not_enough_matching_sell_orders_at_different_price_levels()
-    {
+     {
         let mut order_book = OrderBook::default();
         order_book.match_limit_order(Order::new(OrderId(0), Price(99), Qty(1), Side::Sell));
         order_book.match_limit_order(Order::new(OrderId(1), Price(99), Qty(1), Side::Sell));
@@ -304,7 +339,7 @@ mod tests {
                     price: Price(100),
                     quantity: Qty(1)
                 },
-                Event::OrderAddedToBook(OrderId(3), Side::Buy, Price(100), Qty(2), )
+                Event::OrderAddedToBook(OrderId(3), Side::Buy, Price(100), Qty(2),)
             ]
         );
         assert_eq!(order_book.sell_orders.len(), 0);
