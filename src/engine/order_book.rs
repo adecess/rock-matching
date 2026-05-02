@@ -53,32 +53,19 @@ impl OrderBook {
         match incoming_order.side {
             Side::Buy => {
                 while incoming_order.quantity > Qty(0)
-                    && let Some(mut ask_price_level) = self.sell_orders.first_entry()
+                    && let Some(ask_price_level) = self.sell_orders.first_entry()
                 {
                     match ask_price_level.key().cmp(&incoming_order.price) {
                         Ordering::Greater => {
                             break;
                         }
                         _ => {
-                            let resting_order = ask_price_level.get_mut().front_mut().expect(
-                                "There should be at least one order at this ask price level",
+                            Self::trade(
+                                &mut incoming_order,
+                                &mut events,
+                                ask_price_level,
+                                Side::Buy,
                             );
-                            let trade_size = min(incoming_order.quantity, resting_order.quantity);
-
-                            events.push(Event::OrderTraded {
-                                taker: incoming_order.order_id,
-                                maker: resting_order.order_id,
-                                taker_side: Side::Buy,
-                                price: resting_order.price,
-                                quantity: trade_size,
-                            });
-
-                            resting_order.quantity = resting_order.quantity - trade_size;
-                            incoming_order.quantity = incoming_order.quantity - trade_size;
-
-                            if resting_order.quantity == Qty(0) {
-                                Self::pop_price_level(ask_price_level);
-                            }
                         }
                     }
                 }
@@ -97,31 +84,18 @@ impl OrderBook {
                 }
             }
             Side::Sell => {
-                while let Some(mut bid_price_level) = self.buy_orders.last_entry() {
+                while let Some(bid_price_level) = self.buy_orders.last_entry() {
                     match bid_price_level.key().cmp(&incoming_order.price) {
                         Ordering::Less => {
                             break;
                         }
                         _ => {
-                            let resting_order = bid_price_level.get_mut().front_mut().expect(
-                                "There should be at least one order at this bid price level",
+                            Self::trade(
+                                &mut incoming_order,
+                                &mut events,
+                                bid_price_level,
+                                Side::Sell,
                             );
-                            let trade_size = min(incoming_order.quantity, resting_order.quantity);
-
-                            events.push(Event::OrderTraded {
-                                taker: incoming_order.order_id,
-                                maker: resting_order.order_id,
-                                taker_side: Side::Sell,
-                                price: resting_order.price,
-                                quantity: trade_size,
-                            });
-
-                            incoming_order.quantity = incoming_order.quantity - trade_size;
-                            resting_order.quantity = resting_order.quantity - trade_size;
-
-                            if resting_order.quantity == Qty(0) {
-                                Self::pop_price_level(bid_price_level);
-                            }
                         }
                     }
                 }
@@ -142,6 +116,34 @@ impl OrderBook {
         }
 
         events
+    }
+
+    fn trade(
+        incoming_order: &mut Order,
+        events: &mut Vec<Event>,
+        mut price_level: OccupiedEntry<Price, VecDeque<Order>>,
+        side: Side,
+    ) {
+        let resting_order = price_level
+            .get_mut()
+            .front_mut()
+            .expect("There should be at least one order at this ask price level");
+        let trade_size = min(incoming_order.quantity, resting_order.quantity);
+
+        events.push(Event::OrderTraded {
+            taker: incoming_order.order_id,
+            maker: resting_order.order_id,
+            taker_side: side,
+            price: resting_order.price,
+            quantity: trade_size,
+        });
+
+        resting_order.quantity = resting_order.quantity - trade_size;
+        incoming_order.quantity = incoming_order.quantity - trade_size;
+
+        if resting_order.quantity == Qty(0) {
+            Self::pop_price_level(price_level);
+        }
     }
 }
 
