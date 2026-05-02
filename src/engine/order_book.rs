@@ -47,7 +47,7 @@ impl OrderBook {
         }
     }
 
-    fn match_limit_order(&mut self, mut incoming_order: Order) -> Vec<Event> {
+    pub fn match_limit_order(&mut self, mut incoming_order: Order) -> Vec<Event> {
         let mut events = Vec::new();
 
         match incoming_order.side {
