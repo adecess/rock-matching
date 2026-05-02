@@ -23,30 +23,6 @@ pub struct OrderBook {
 }
 
 impl OrderBook {
-    fn add_to_book(&mut self, price: Price, side: Side, incoming_order: Order) {
-        match side {
-            Side::Buy => {
-                self.buy_orders
-                    .entry(price)
-                    .or_default()
-                    .push_back(incoming_order);
-            }
-            Side::Sell => {
-                self.sell_orders
-                    .entry(price)
-                    .or_default()
-                    .push_back(incoming_order);
-            }
-        }
-    }
-
-    fn pop_price_level(mut price_level: OccupiedEntry<Price, VecDeque<Order>>) {
-        price_level.get_mut().pop_front();
-        if price_level.get().is_empty() {
-            price_level.remove();
-        }
-    }
-
     pub fn match_limit_order(&mut self, mut incoming_order: Order) -> Vec<Event> {
         let mut events = Vec::new();
 
@@ -55,18 +31,10 @@ impl OrderBook {
                 while incoming_order.quantity > Qty(0)
                     && let Some(ask_price_level) = self.sell_orders.first_entry()
                 {
-                    match ask_price_level.key().cmp(&incoming_order.price) {
-                        Ordering::Greater => {
-                            break;
-                        }
-                        _ => {
-                            Self::trade(
-                                &mut incoming_order,
-                                &mut events,
-                                ask_price_level,
-                                Side::Buy,
-                            );
-                        }
+                    if let Ordering::Greater = ask_price_level.key().cmp(&incoming_order.price) {
+                        break;
+                    } else {
+                        Self::trade(&mut incoming_order, &mut events, ask_price_level, Side::Buy);
                     }
                 }
 
@@ -74,18 +42,15 @@ impl OrderBook {
             }
             Side::Sell => {
                 while let Some(bid_price_level) = self.buy_orders.last_entry() {
-                    match bid_price_level.key().cmp(&incoming_order.price) {
-                        Ordering::Less => {
-                            break;
-                        }
-                        _ => {
-                            Self::trade(
-                                &mut incoming_order,
-                                &mut events,
-                                bid_price_level,
-                                Side::Sell,
-                            );
-                        }
+                    if let Ordering::Less = bid_price_level.key().cmp(&incoming_order.price) {
+                        break;
+                    } else {
+                        Self::trade(
+                            &mut incoming_order,
+                            &mut events,
+                            bid_price_level,
+                            Side::Sell,
+                        );
                     }
                 }
 
@@ -94,26 +59,6 @@ impl OrderBook {
         }
 
         events
-    }
-
-    fn handle_remaining_order_quantity(
-        &mut self,
-        incoming_order: Order,
-        events: &mut Vec<Event>,
-        side: Side,
-    ) {
-        let order_id = incoming_order.order_id;
-        let order_price = incoming_order.price;
-        let remaining_order_quantity = incoming_order.quantity;
-        if remaining_order_quantity > Qty(0) {
-            self.add_to_book(incoming_order.price, side, incoming_order);
-            events.push(Event::OrderAddedToBook(
-                order_id,
-                side,
-                order_price,
-                remaining_order_quantity,
-            ));
-        }
     }
 
     fn trade(
@@ -141,6 +86,50 @@ impl OrderBook {
 
         if resting_order.quantity == Qty(0) {
             Self::pop_price_level(price_level);
+        }
+    }
+
+    fn pop_price_level(mut price_level: OccupiedEntry<Price, VecDeque<Order>>) {
+        price_level.get_mut().pop_front();
+        if price_level.get().is_empty() {
+            price_level.remove();
+        }
+    }
+
+    fn handle_remaining_order_quantity(
+        &mut self,
+        incoming_order: Order,
+        events: &mut Vec<Event>,
+        side: Side,
+    ) {
+        let order_id = incoming_order.order_id;
+        let order_price = incoming_order.price;
+        let remaining_order_quantity = incoming_order.quantity;
+        if remaining_order_quantity > Qty(0) {
+            self.add_to_book(incoming_order.price, side, incoming_order);
+            events.push(Event::OrderAddedToBook(
+                order_id,
+                side,
+                order_price,
+                remaining_order_quantity,
+            ));
+        }
+    }
+
+    fn add_to_book(&mut self, price: Price, side: Side, incoming_order: Order) {
+        match side {
+            Side::Buy => {
+                self.buy_orders
+                    .entry(price)
+                    .or_default()
+                    .push_back(incoming_order);
+            }
+            Side::Sell => {
+                self.sell_orders
+                    .entry(price)
+                    .or_default()
+                    .push_back(incoming_order);
+            }
         }
     }
 }
