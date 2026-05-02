@@ -70,18 +70,7 @@ impl OrderBook {
                     }
                 }
 
-                let order_id = incoming_order.order_id;
-                let order_price = incoming_order.price;
-                let remaining_order_quantity = incoming_order.quantity;
-                if remaining_order_quantity > Qty(0) {
-                    self.add_to_book(incoming_order.price, Side::Buy, incoming_order);
-                    events.push(Event::OrderAddedToBook(
-                        order_id,
-                        Side::Buy,
-                        order_price,
-                        remaining_order_quantity,
-                    ));
-                }
+                self.handle_remaining_order_quantity(incoming_order, &mut events, Side::Buy);
             }
             Side::Sell => {
                 while let Some(bid_price_level) = self.buy_orders.last_entry() {
@@ -100,22 +89,31 @@ impl OrderBook {
                     }
                 }
 
-                let order_id = incoming_order.order_id;
-                let order_price = incoming_order.price;
-                let remaining_order_quantity = incoming_order.quantity;
-                if remaining_order_quantity > Qty(0) {
-                    self.add_to_book(order_price, Side::Sell, incoming_order);
-                    events.push(Event::OrderAddedToBook(
-                        order_id,
-                        Side::Sell,
-                        order_price,
-                        remaining_order_quantity,
-                    ));
-                }
+                self.handle_remaining_order_quantity(incoming_order, &mut events, Side::Sell);
             }
         }
 
         events
+    }
+
+    fn handle_remaining_order_quantity(
+        &mut self,
+        incoming_order: Order,
+        events: &mut Vec<Event>,
+        side: Side,
+    ) {
+        let order_id = incoming_order.order_id;
+        let order_price = incoming_order.price;
+        let remaining_order_quantity = incoming_order.quantity;
+        if remaining_order_quantity > Qty(0) {
+            self.add_to_book(incoming_order.price, side, incoming_order);
+            events.push(Event::OrderAddedToBook(
+                order_id,
+                side,
+                order_price,
+                remaining_order_quantity,
+            ));
+        }
     }
 
     fn trade(
