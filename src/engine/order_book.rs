@@ -13,7 +13,10 @@ pub enum Event {
         quantity: Qty,
     },
     OrderAddedToBook(OrderId, Side, Price, Qty),
-    OrderCancelled(OrderId),
+    OrderCancelled {
+        order_id: OrderId,
+        cancelled_quantity: Qty,
+    },
 }
 
 #[derive(Default)]
@@ -23,6 +26,61 @@ pub struct OrderBook {
 }
 
 impl OrderBook {
+    pub fn match_market_order(
+        &mut self,
+        order_id: OrderId,
+        side: Side,
+        quantity: Qty,
+    ) -> Vec<Event> {
+        let mut events = Vec::new();
+        let mut remaining = quantity;
+
+        match side {
+            Side::Buy => {
+                while remaining > Qty(0)
+                    && let Some(ask_price_level) = self.sell_orders.first_entry()
+                {
+                    Self::trade(
+                        order_id,
+                        &mut remaining,
+                        &mut events,
+                        ask_price_level,
+                        Side::Buy,
+                    );
+                }
+
+                if remaining > Qty(0) {
+                    events.push(Event::OrderCancelled {
+                        order_id,
+                        cancelled_quantity: remaining,
+                    });
+                }
+            }
+            Side::Sell => {
+                while remaining > Qty(0)
+                    && let Some(bid_price_level) = self.buy_orders.last_entry()
+                {
+                    Self::trade(
+                        order_id,
+                        &mut remaining,
+                        &mut events,
+                        bid_price_level,
+                        Side::Sell,
+                    );
+                }
+
+                if remaining > Qty(0) {
+                    events.push(Event::OrderCancelled {
+                        order_id,
+                        cancelled_quantity: remaining,
+                    });
+                }
+            }
+        }
+
+        events
+    }
+
     pub fn match_limit_order(&mut self, mut incoming_order: Order) -> Vec<Event> {
         let mut events = Vec::new();
 
@@ -34,19 +92,28 @@ impl OrderBook {
                     if let Ordering::Greater = ask_price_level.key().cmp(&incoming_order.price) {
                         break;
                     } else {
-                        Self::trade(&mut incoming_order, &mut events, ask_price_level, Side::Buy);
+                        Self::trade(
+                            incoming_order.order_id,
+                            &mut incoming_order.quantity,
+                            &mut events,
+                            ask_price_level,
+                            Side::Buy,
+                        );
                     }
                 }
 
                 self.handle_remaining_order_quantity(incoming_order, &mut events, Side::Buy);
             }
             Side::Sell => {
-                while let Some(bid_price_level) = self.buy_orders.last_entry() {
+                while incoming_order.quantity > Qty(0)
+                    && let Some(bid_price_level) = self.buy_orders.last_entry()
+                {
                     if let Ordering::Less = bid_price_level.key().cmp(&incoming_order.price) {
                         break;
                     } else {
                         Self::trade(
-                            &mut incoming_order,
+                            incoming_order.order_id,
+                            &mut incoming_order.quantity,
                             &mut events,
                             bid_price_level,
                             Side::Sell,
@@ -62,7 +129,8 @@ impl OrderBook {
     }
 
     fn trade(
-        incoming_order: &mut Order,
+        taker_id: OrderId,
+        taker_remaining: &mut Qty,
         events: &mut Vec<Event>,
         mut price_level: OccupiedEntry<Price, VecDeque<Order>>,
         side: Side,
@@ -71,10 +139,10 @@ impl OrderBook {
             .get_mut()
             .front_mut()
             .expect("There should be at least one order at this ask price level");
-        let trade_size = min(incoming_order.quantity, resting_order.quantity);
+        let trade_size = min(*taker_remaining, resting_order.quantity);
 
         events.push(Event::OrderTraded {
-            taker: incoming_order.order_id,
+            taker: taker_id,
             maker: resting_order.order_id,
             taker_side: side,
             price: resting_order.price,
@@ -82,7 +150,7 @@ impl OrderBook {
         });
 
         resting_order.quantity = resting_order.quantity - trade_size;
-        incoming_order.quantity = incoming_order.quantity - trade_size;
+        *taker_remaining = *taker_remaining - trade_size;
 
         if resting_order.quantity == Qty(0) {
             Self::pop_price_level(price_level);

@@ -1,4 +1,5 @@
 use rock_matching::engine::core::{Command, Engine, Timestamp};
+use rock_matching::engine::core::OrderType::Limit;
 use rock_matching::engine::order::{Price, Qty, Side};
 
 fn main() {
@@ -6,10 +7,10 @@ fn main() {
 
     engine
         .apply(Command::SubmitOrder {
-            price: Price(0),
             quantity: Qty(0),
             side: Side::Buy,
             timestamp: Timestamp(1),
+            order_type: Limit(Price(100)),
         })
         .expect("TODO: panic message");
 }

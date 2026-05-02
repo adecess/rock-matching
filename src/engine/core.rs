@@ -4,17 +4,18 @@ use crate::engine::order_book::{Event, OrderBook};
 #[derive(Default, Ord, PartialOrd, Eq, PartialEq)]
 pub struct Timestamp(pub u64);
 
+pub enum OrderType {
+    Limit(Price),
+    Market,
+}
+
 pub enum Command {
     SubmitOrder {
         timestamp: Timestamp,
-        price: Price,
         quantity: Qty,
         side: Side,
+        order_type: OrderType,
     },
-    // CancelOrder {
-    //     timestamp: Timestamp,
-    //     order_id: OrderId,
-    // },
 }
 
 #[derive(Debug, PartialEq)]
@@ -37,25 +38,27 @@ impl Engine {
         match command {
             Command::SubmitOrder {
                 timestamp,
-                price,
                 quantity,
                 side,
+                order_type,
             } => {
                 if timestamp <= self.last_timestamp {
                     return Err(ApplyError::TimestampRegression);
                 }
                 self.last_timestamp = timestamp;
 
-                let incoming_order = Order::new(self.assign_order_id(), price, quantity, side);
+                let order_id = self.assign_order_id();
 
-                Ok(self.order_book.match_limit_order(incoming_order))
-            } // Command::CancelOrder { timestamp, order_id } => {
-              //     if timestamp < self.last_timestamp {
-              //         return Err(ApplyError::TimestampRegression);
-              //     }
-              //
-              //     self.order_book.cancel_order(order_id)
-              // }
+                match order_type {
+                    OrderType::Limit(price) => {
+                        let incoming_order = Order::new(order_id, price, quantity, side);
+                        Ok(self.order_book.match_limit_order(incoming_order))
+                    }
+                    OrderType::Market => {
+                        Ok(self.order_book.match_market_order(order_id, side, quantity))
+                    }
+                }
+            }
         }
     }
 
@@ -71,6 +74,7 @@ impl Engine {
 mod tests {
     use crate::engine::core::ApplyError::TimestampRegression;
     use crate::engine::core::Command::SubmitOrder;
+    use crate::engine::core::OrderType::Limit;
     use crate::engine::core::{Engine, Timestamp};
     use crate::engine::order::{OrderId, Price, Qty, Side};
     use crate::engine::order_book::Event;
@@ -81,34 +85,34 @@ mod tests {
         engine
             .apply(SubmitOrder {
                 timestamp: Timestamp(1),
-                price: Price(102),
                 quantity: Qty(1),
                 side: Side::Buy,
+                order_type: Limit(Price(102)),
             })
             .expect("Initial buy order submission failed");
         engine
             .apply(SubmitOrder {
                 timestamp: Timestamp(2),
-                price: Price(100),
                 quantity: Qty(3),
                 side: Side::Buy,
+                order_type: Limit(Price(100)),
             })
             .expect("Second buy order submission failed");
         engine
             .apply(SubmitOrder {
                 timestamp: Timestamp(3),
-                price: Price(100),
                 quantity: Qty(1),
                 side: Side::Buy,
+                order_type: Limit(Price(100)),
             })
             .expect("Third buy order submission failed");
 
         let events = engine
             .apply(SubmitOrder {
                 timestamp: Timestamp(4),
-                price: Price(100),
                 quantity: Qty(10),
                 side: Side::Sell,
+                order_type: Limit(Price(100)),
             })
             .expect("Incoming sell order submission failed");
 
@@ -149,17 +153,17 @@ mod tests {
         engine
             .apply(SubmitOrder {
                 timestamp: Timestamp(1),
-                price: Price(101),
                 quantity: Qty(1),
                 side: Side::Buy,
+                order_type: Limit(Price(101)),
             })
             .expect("Initial buy order submission failed");
 
         let timestamp_error = engine.apply(SubmitOrder {
             timestamp: Timestamp(1),
-            price: Price(101),
             quantity: Qty(1),
             side: Side::Buy,
+            order_type: Limit(Price(101)),
         });
 
         assert_eq!(Err(TimestampRegression), timestamp_error);

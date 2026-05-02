@@ -20,6 +20,7 @@ impl Sub for Qty {
     }
 }
 
+// represents resting state on the book (which only limit orders achieve)
 #[derive(Debug, Clone)]
 pub struct Order {
     pub order_id: OrderId,
