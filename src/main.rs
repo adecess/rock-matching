@@ -1,5 +1,5 @@
-use rock_matching::engine::core::{Command, Engine, Timestamp};
 use rock_matching::engine::core::OrderType::Limit;
+use rock_matching::engine::core::{Command, Engine, Timestamp};
 use rock_matching::engine::order::{Price, Qty, Side};
 
 fn main() {

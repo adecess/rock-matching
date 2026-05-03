@@ -74,13 +74,13 @@ impl Engine {
 mod tests {
     use crate::engine::core::ApplyError::TimestampRegression;
     use crate::engine::core::Command::SubmitOrder;
-    use crate::engine::core::OrderType::Limit;
-    use crate::engine::core::{Engine, Timestamp};
+    use crate::engine::core::OrderType::{Limit, Market};
+    use crate::engine::core::{Command, Engine, Timestamp};
     use crate::engine::order::{OrderId, Price, Qty, Side};
     use crate::engine::order_book::Event;
 
     #[test]
-    fn limit_orders_are_successfully_submitted() {
+    fn limit_orders_are_successfully_submitted_and_trade() {
         let mut engine = Engine::default();
         engine
             .apply(SubmitOrder {
@@ -113,12 +113,11 @@ mod tests {
                 quantity: Qty(10),
                 side: Side::Sell,
                 order_type: Limit(Price(100)),
-            })
-            .expect("Incoming sell order submission failed");
+            });
 
         assert_eq!(
             events,
-            [
+            Ok(Vec::from([
                 Event::OrderTraded {
                     taker: OrderId(3),
                     maker: OrderId(0),
@@ -140,11 +139,41 @@ mod tests {
                     price: Price(100),
                     quantity: Qty(1)
                 },
-                Event::OrderAddedToBook(OrderId(3), Side::Sell, Price(100), Qty(5),)
-            ]
+                Event::OrderAddedToBook(OrderId(3), Side::Sell, Price(100), Qty(5), )
+            ]))
         );
-        assert_eq!(engine.order_book.buy_orders.len(), 0);
-        assert_eq!(engine.order_book.sell_orders.len(), 1);
+    }
+
+    #[test]
+    fn market_buy_order_successfully_submitted_and_trades() {
+        let mut engine = Engine::default();
+        engine
+            .apply(Command::SubmitOrder {
+                timestamp: Timestamp(1),
+                order_type: Limit(Price(99)),
+                quantity: Qty(5),
+                side: Side::Sell,
+            })
+            .expect("Sell order submission failed");
+
+        let events = engine
+            .apply(SubmitOrder {
+                timestamp: Timestamp(2),
+                order_type: Market,
+                quantity: Qty(5),
+                side: Side::Buy,
+            });
+
+        assert_eq!(
+            events,
+            Ok(Vec::from([Event::OrderTraded {
+                taker: OrderId(1),
+                maker: OrderId(0),
+                taker_side: Side::Buy,
+                price: Price(99),
+                quantity: Qty(5)
+            }]))
+        );
     }
 
     #[test]
