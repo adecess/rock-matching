@@ -16,6 +16,10 @@ pub enum Command {
         side: Side,
         order_type: OrderType,
     },
+    CancelOrder {
+        order_id: OrderId,
+        timestamp: Timestamp
+    },
 }
 
 #[derive(Debug, PartialEq)]
@@ -42,10 +46,7 @@ impl Engine {
                 side,
                 order_type,
             } => {
-                if timestamp <= self.last_timestamp {
-                    return Err(ApplyError::TimestampRegression);
-                }
-                self.last_timestamp = timestamp;
+                self.check_and_update_timestamp(timestamp)?;
 
                 let order_id = self.assign_order_id();
 
@@ -58,8 +59,25 @@ impl Engine {
                         Ok(self.order_book.match_market_order(order_id, side, quantity))
                     }
                 }
+            },
+            Command::CancelOrder {
+                order_id,
+                timestamp,
+            } => {
+                self.check_and_update_timestamp(timestamp)?;
+                
+                Ok(self.order_book.cancel_order(order_id))
             }
         }
+    }
+    
+    fn check_and_update_timestamp(&mut self, timestamp: Timestamp) -> Result<(), ApplyError> {
+        if timestamp <= self.last_timestamp {
+            return Err(ApplyError::TimestampRegression)
+        }
+        self.last_timestamp = timestamp;
+        
+        Ok(())
     }
 
     fn assign_order_id(&mut self) -> OrderId {

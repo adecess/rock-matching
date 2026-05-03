@@ -200,6 +200,10 @@ impl OrderBook {
             }
         }
     }
+
+    pub fn cancel_order(&mut self, order_id: OrderId) -> Vec<Event> {
+        todo!()
+    }
 }
 
 #[cfg(test)]
@@ -283,7 +287,7 @@ mod tests {
 
     #[test]
     fn limit_buy_order_trades_with_partial_maker_fill_if_there_is_a_matching_sell_order_with_higher_quantity()
-     {
+    {
         let mut order_book = OrderBook::default();
         order_book.match_limit_order(Order::new(OrderId(0), Price(99), Qty(8), Side::Sell));
 
@@ -385,7 +389,7 @@ mod tests {
 
     #[test]
     fn limit_buy_order_trades_partially_if_there_are_not_enough_matching_sell_orders_at_different_price_levels()
-     {
+    {
         let mut order_book = OrderBook::default();
         order_book.match_limit_order(Order::new(OrderId(0), Price(99), Qty(1), Side::Sell));
         order_book.match_limit_order(Order::new(OrderId(1), Price(99), Qty(1), Side::Sell));
@@ -418,7 +422,7 @@ mod tests {
                     price: Price(100),
                     quantity: Qty(1)
                 },
-                Event::OrderAddedToBook(OrderId(3), Side::Buy, Price(100), Qty(2),)
+                Event::OrderAddedToBook(OrderId(3), Side::Buy, Price(100), Qty(2), )
             ]
         );
         assert_eq!(order_book.sell_orders.len(), 0);
@@ -427,7 +431,7 @@ mod tests {
 
     #[test]
     fn limit_sell_order_trades_partially_if_there_are_not_enough_matching_buy_orders_at_different_price_levels()
-     {
+    {
         let mut order_book = OrderBook::default();
         order_book.match_limit_order(Order::new(OrderId(0), Price(101), Qty(1), Side::Buy));
         order_book.match_limit_order(Order::new(OrderId(1), Price(100), Qty(3), Side::Buy));
@@ -460,7 +464,7 @@ mod tests {
                     price: Price(100),
                     quantity: Qty(1)
                 },
-                Event::OrderAddedToBook(OrderId(3), Side::Sell, Price(100), Qty(5),)
+                Event::OrderAddedToBook(OrderId(3), Side::Sell, Price(100), Qty(5), )
             ]
         );
         assert_eq!(order_book.buy_orders.len(), 0);
