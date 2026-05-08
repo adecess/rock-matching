@@ -18,7 +18,7 @@ pub enum Command {
     },
     CancelOrder {
         order_id: OrderId,
-        timestamp: Timestamp
+        timestamp: Timestamp,
     },
 }
 
@@ -59,24 +59,24 @@ impl Engine {
                         Ok(self.order_book.match_market_order(order_id, side, quantity))
                     }
                 }
-            },
+            }
             Command::CancelOrder {
                 order_id,
                 timestamp,
             } => {
                 self.check_and_update_timestamp(timestamp)?;
-                
+
                 Ok(self.order_book.cancel_order(order_id))
             }
         }
     }
-    
+
     fn check_and_update_timestamp(&mut self, timestamp: Timestamp) -> Result<(), ApplyError> {
         if timestamp <= self.last_timestamp {
-            return Err(ApplyError::TimestampRegression)
+            return Err(ApplyError::TimestampRegression);
         }
         self.last_timestamp = timestamp;
-        
+
         Ok(())
     }
 
@@ -125,13 +125,12 @@ mod tests {
             })
             .expect("Third buy order submission failed");
 
-        let events = engine
-            .apply(SubmitOrder {
-                timestamp: Timestamp(4),
-                quantity: Qty(10),
-                side: Side::Sell,
-                order_type: Limit(Price(100)),
-            });
+        let events = engine.apply(SubmitOrder {
+            timestamp: Timestamp(4),
+            quantity: Qty(10),
+            side: Side::Sell,
+            order_type: Limit(Price(100)),
+        });
 
         assert_eq!(
             events,
@@ -157,7 +156,7 @@ mod tests {
                     price: Price(100),
                     quantity: Qty(1)
                 },
-                Event::OrderAddedToBook(OrderId(3), Side::Sell, Price(100), Qty(5), )
+                Event::OrderAddedToBook(OrderId(3), Side::Sell, Price(100), Qty(5),)
             ]))
         );
     }
@@ -174,13 +173,12 @@ mod tests {
             })
             .expect("Sell order submission failed");
 
-        let events = engine
-            .apply(SubmitOrder {
-                timestamp: Timestamp(2),
-                order_type: Market,
-                quantity: Qty(5),
-                side: Side::Buy,
-            });
+        let events = engine.apply(SubmitOrder {
+            timestamp: Timestamp(2),
+            order_type: Market,
+            quantity: Qty(5),
+            side: Side::Buy,
+        });
 
         assert_eq!(
             events,
