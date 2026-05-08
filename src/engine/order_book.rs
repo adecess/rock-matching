@@ -186,20 +186,12 @@ impl OrderBook {
     }
 
     fn add_to_book(&mut self, price: Price, side: Side, incoming_order: Order) {
-        match side {
-            Side::Buy => {
-                self.buy_orders
-                    .entry(price)
-                    .or_default()
-                    .push_back(incoming_order);
-            }
-            Side::Sell => {
-                self.sell_orders
-                    .entry(price)
-                    .or_default()
-                    .push_back(incoming_order);
-            }
-        }
+        let book = match side {
+            Side::Buy => &mut self.buy_orders,
+            Side::Sell => &mut self.sell_orders,
+        };
+
+        book.entry(price).or_default().push_back(incoming_order);
     }
 
     fn find_order(&self, order_id: OrderId) -> Option<(Side, Price, usize)> {
@@ -224,22 +216,15 @@ impl OrderBook {
     }
 
     fn remove_order(&mut self, side: Side, price: Price, index: usize) {
-        match side {
-            Side::Buy => {
-                if let Entry::Occupied(mut price_level) = self.buy_orders.entry(price) {
-                    price_level.get_mut().remove(index);
-                    if price_level.get().is_empty() {
-                        price_level.remove();
-                    }
-                }
-            }
-            Side::Sell => {
-                if let Entry::Occupied(mut price_level) = self.sell_orders.entry(price) {
-                    price_level.get_mut().remove(index);
-                    if price_level.get().is_empty() {
-                        price_level.remove();
-                    }
-                }
+        let book = match side {
+            Side::Buy => &mut self.buy_orders,
+            Side::Sell => &mut self.sell_orders,
+        };
+
+        if let Entry::Occupied(mut entry) = book.entry(price) {
+            entry.get_mut().remove(index);
+            if entry.get().is_empty() {
+                entry.remove();
             }
         }
     }
