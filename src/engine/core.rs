@@ -68,12 +68,9 @@ impl Engine {
             } => {
                 self.check_and_update_timestamp(timestamp)?;
 
-                let cancel_order_events = self.order_book.cancel_order(order_id);
-
-                match cancel_order_events.len() {
-                    0 => Err(ApplyError::OrderNotFound(order_id)),
-                    _ => Ok(cancel_order_events),
-                }
+                self.order_book
+                    .cancel_order(order_id)
+                    .ok_or(ApplyError::OrderNotFound(order_id))
             }
         }
     }
@@ -235,13 +232,13 @@ mod tests {
 
         assert_eq!(
             events,
-            Ok(Vec::from([Event::OrderTraded {
+            Ok(vec![Event::OrderTraded {
                 taker: OrderId(1),
                 maker: OrderId(0),
                 taker_side: Side::Buy,
                 price: Price(99),
                 quantity: Qty(5)
-            }]))
+            }])
         );
     }
 
@@ -280,10 +277,10 @@ mod tests {
 
         assert_eq!(
             events,
-            Ok(Vec::from([Event::OrderCancelled {
+            Ok(vec![Event::OrderCancelled {
                 order_id: OrderId(1),
                 cancelled_quantity: Qty(78)
-            },]))
+            }])
         );
     }
 

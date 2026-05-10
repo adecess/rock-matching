@@ -229,18 +229,14 @@ impl OrderBook {
         }
     }
 
-    pub fn cancel_order(&mut self, order_id: OrderId) -> Vec<Event> {
-        let order_to_cancel = self.find_order(order_id);
-        if let Some((side, price, quantity, index)) = order_to_cancel {
-            self.remove_order(side, price, index);
+    pub fn cancel_order(&mut self, order_id: OrderId) -> Option<Vec<Event>> {
+        let (side, price, quantity, index) = self.find_order(order_id)?;
 
-            return Vec::from([Event::OrderCancelled {
-                order_id,
-                cancelled_quantity: quantity,
-            }]);
-        }
-
-        Vec::new()
+        self.remove_order(side, price, index);
+        Some(vec![Event::OrderCancelled {
+            order_id,
+            cancelled_quantity: quantity,
+        }])
     }
 }
 
@@ -333,10 +329,10 @@ mod tests {
         let events = order_book.cancel_order(OrderId(1));
         assert_eq!(
             events,
-            [Event::OrderCancelled {
+            Some(vec![Event::OrderCancelled {
                 order_id: OrderId(1),
                 cancelled_quantity: Qty(44),
-            },]
+            }])
         );
         assert_eq!(order_book.sell_orders.len(), 1);
         assert_eq!(order_book.buy_orders.len(), 1);
@@ -349,8 +345,8 @@ mod tests {
         order_book.match_limit_order(Order::new(OrderId(1), Price(100), Qty(44), Side::Sell));
         order_book.match_limit_order(Order::new(OrderId(2), Price(50), Qty(45), Side::Buy));
 
-        let events = order_book.cancel_order(OrderId(3));
-        assert_eq!(events, []);
+        let no_order = order_book.cancel_order(OrderId(3));
+        assert_eq!(no_order, None);
         assert_eq!(order_book.sell_orders.len(), 2);
         assert_eq!(order_book.buy_orders.len(), 1);
     }
