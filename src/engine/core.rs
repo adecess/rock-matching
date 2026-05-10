@@ -65,16 +65,12 @@ impl Engine {
                 timestamp,
             } => {
                 self.check_and_update_timestamp(timestamp)?;
-                
+
                 let cancel_order_events = self.order_book.cancel_order(order_id);
-                
+
                 match cancel_order_events.len() {
-                    0 => {
-                        Err(ApplyError::OrderNotFound(order_id))
-                    },
-                    _ => {
-                        Ok(cancel_order_events)
-                    }
+                    0 => Err(ApplyError::OrderNotFound(order_id)),
+                    _ => Ok(cancel_order_events),
                 }
             }
         }
@@ -99,8 +95,8 @@ impl Engine {
 
 #[cfg(test)]
 mod tests {
-    use crate::engine::core::ApplyError::TimestampRegression;
-    use crate::engine::core::Command::SubmitOrder;
+    use crate::engine::core::ApplyError::{OrderNotFound, TimestampRegression};
+    use crate::engine::core::Command::{CancelOrder, SubmitOrder};
     use crate::engine::core::OrderType::{Limit, Market};
     use crate::engine::core::{Command, Engine, Timestamp};
     use crate::engine::order::{OrderId, Price, Qty, Side};
@@ -199,6 +195,84 @@ mod tests {
                 quantity: Qty(5)
             }]))
         );
+    }
+
+    #[test]
+    fn engine_successfully_cancels_existing_order() {
+        let mut engine = Engine::default();
+        engine
+            .apply(SubmitOrder {
+                timestamp: Timestamp(1),
+                quantity: Qty(1536),
+                side: Side::Buy,
+                order_type: Limit(Price(102)),
+            })
+            .expect("Initial buy order submission failed");
+        engine
+            .apply(SubmitOrder {
+                timestamp: Timestamp(2),
+                quantity: Qty(78),
+                side: Side::Buy,
+                order_type: Limit(Price(100)),
+            })
+            .expect("Second buy order submission failed");
+        engine
+            .apply(SubmitOrder {
+                timestamp: Timestamp(3),
+                quantity: Qty(9026),
+                side: Side::Sell,
+                order_type: Limit(Price(1000)),
+            })
+            .expect("First sell order submission failed");
+
+        let events = engine.apply(CancelOrder {
+            order_id: OrderId(1),
+            timestamp: Timestamp(4),
+        });
+
+        assert_eq!(
+            events,
+            Ok(Vec::from([Event::OrderCancelled {
+                order_id: OrderId(1),
+                cancelled_quantity: Qty(78)
+            },]))
+        );
+    }
+
+    #[test]
+    fn engine_returns_error_if_order_cancelled_does_not_exist() {
+        let mut engine = Engine::default();
+        engine
+            .apply(SubmitOrder {
+                timestamp: Timestamp(1),
+                quantity: Qty(1536),
+                side: Side::Buy,
+                order_type: Limit(Price(102)),
+            })
+            .expect("Initial buy order submission failed");
+        engine
+            .apply(SubmitOrder {
+                timestamp: Timestamp(2),
+                quantity: Qty(78),
+                side: Side::Buy,
+                order_type: Limit(Price(100)),
+            })
+            .expect("Second buy order submission failed");
+        engine
+            .apply(SubmitOrder {
+                timestamp: Timestamp(3),
+                quantity: Qty(9026),
+                side: Side::Sell,
+                order_type: Limit(Price(1000)),
+            })
+            .expect("First sell order submission failed");
+
+        let error = engine.apply(CancelOrder {
+            order_id: OrderId(39018),
+            timestamp: Timestamp(45678),
+        });
+
+        assert_eq!(error, Err(OrderNotFound(OrderId(39018))));
     }
 
     #[test]
