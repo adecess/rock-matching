@@ -26,7 +26,7 @@ pub enum Command {
 pub enum ApplyError {
     OrderNotFound(OrderId),
     InvalidPrice(Price),
-    ZeroQuantity,
+    InvalidQuantity(Qty),
     TimestampRegression,
 }
 
@@ -47,11 +47,13 @@ impl Engine {
                 order_type,
             } => {
                 self.check_and_update_timestamp(timestamp)?;
+                Self::check_invalid_quantity(quantity)?;
 
                 let order_id = self.assign_order_id();
 
                 match order_type {
                     OrderType::Limit(price) => {
+                        Self::check_invalid_price(price)?;
                         let incoming_order = Order::new(order_id, price, quantity, side);
                         Ok(self.order_book.match_limit_order(incoming_order))
                     }
@@ -85,6 +87,22 @@ impl Engine {
         Ok(())
     }
 
+    fn check_invalid_price(price: Price) -> Result<(), ApplyError> {
+        if price == Price(0) {
+            return Err(ApplyError::InvalidPrice(price));
+        }
+
+        Ok(())
+    }
+
+    fn check_invalid_quantity(quantity: Qty) -> Result<(), ApplyError> {
+        if quantity == Qty(0) {
+            return Err(ApplyError::InvalidQuantity(quantity));
+        }
+
+        Ok(())
+    }
+
     fn assign_order_id(&mut self) -> OrderId {
         let id = OrderId(self.next_order_id);
         self.next_order_id = id.0 + 1;
@@ -95,7 +113,9 @@ impl Engine {
 
 #[cfg(test)]
 mod tests {
-    use crate::engine::core::ApplyError::{OrderNotFound, TimestampRegression};
+    use crate::engine::core::ApplyError::{
+        InvalidPrice, InvalidQuantity, OrderNotFound, TimestampRegression,
+    };
     use crate::engine::core::Command::{CancelOrder, SubmitOrder};
     use crate::engine::core::OrderType::{Limit, Market};
     use crate::engine::core::{Command, Engine, Timestamp};
@@ -164,6 +184,34 @@ mod tests {
                 Event::OrderAddedToBook(OrderId(3), Side::Sell, Price(100), Qty(5),)
             ]))
         );
+    }
+
+    #[test]
+    fn order_with_invalid_price_cannot_be_submitted() {
+        let mut engine = Engine::default();
+
+        let error = engine.apply(SubmitOrder {
+            timestamp: Timestamp(4),
+            quantity: Qty(15678),
+            side: Side::Sell,
+            order_type: Limit(Price(0)),
+        });
+
+        assert_eq!(error, Err(InvalidPrice(Price(0))));
+    }
+
+    #[test]
+    fn order_with_invalid_quantity_cannot_be_submitted() {
+        let mut engine = Engine::default();
+
+        let error = engine.apply(SubmitOrder {
+            timestamp: Timestamp(4),
+            quantity: Qty(0),
+            side: Side::Sell,
+            order_type: Limit(Price(100)),
+        });
+
+        assert_eq!(error, Err(InvalidQuantity(Qty(0))));
     }
 
     #[test]
