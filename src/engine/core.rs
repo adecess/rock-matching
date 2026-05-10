@@ -65,8 +65,17 @@ impl Engine {
                 timestamp,
             } => {
                 self.check_and_update_timestamp(timestamp)?;
-
-                Ok(self.order_book.cancel_order(order_id))
+                
+                let cancel_order_events = self.order_book.cancel_order(order_id);
+                
+                match cancel_order_events.len() {
+                    0 => {
+                        Err(ApplyError::OrderNotFound(order_id))
+                    },
+                    _ => {
+                        Ok(cancel_order_events)
+                    }
+                }
             }
         }
     }
