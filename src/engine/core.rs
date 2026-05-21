@@ -2,17 +2,17 @@ use crate::engine::order::{Order, OrderId, Price, Qty, Side};
 use crate::engine::order_book::{Event, OrderBook};
 use serde::{Deserialize, Serialize};
 
-#[derive(Default, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Default, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize, Debug)]
 #[serde(transparent)]
 pub struct Timestamp(pub u64);
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub enum OrderType {
     Limit(Price),
     Market,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, PartialEq, Debug)]
 pub enum Command {
     SubmitOrder {
         timestamp: Timestamp,
