@@ -34,7 +34,7 @@ pub enum ApplyError {
     TimestampRegression,
 }
 
-#[derive(Default)]
+#[derive(Default, PartialEq, Debug)]
 pub struct Engine {
     order_book: OrderBook,
     next_order_id: u64,

@@ -20,7 +20,7 @@ pub enum Event {
     },
 }
 
-#[derive(Default)]
+#[derive(Default, PartialEq, Debug)]
 pub struct OrderBook {
     pub buy_orders: BTreeMap<Price, VecDeque<Order>>,
     pub sell_orders: BTreeMap<Price, VecDeque<Order>>,
