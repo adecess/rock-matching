@@ -182,7 +182,7 @@ mod tests {
                     price: Price(100),
                     quantity: Qty(1)
                 },
-                Event::OrderAddedToBook(OrderId(3), Side::Sell, Price(100), Qty(5), )
+                Event::OrderAddedToBook(OrderId(3), Side::Sell, Price(100), Qty(5),)
             ]))
         );
     }

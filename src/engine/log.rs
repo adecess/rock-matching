@@ -79,7 +79,7 @@ mod tests {
 
         let mut buffer: Vec<u8> = Vec::new();
         for command in &commands {
-            append_command(&mut buffer, &command).unwrap();
+            append_command(&mut buffer, command).unwrap();
         }
 
         let decoded = read_commands(&buffer[..]).unwrap();
