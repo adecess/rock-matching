@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::iter::Sum;
 use std::ops::Sub;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -21,6 +22,12 @@ impl Sub for Qty {
 
     fn sub(self, rhs: Self) -> Self::Output {
         Self(self.0 - rhs.0)
+    }
+}
+
+impl Sum for Qty {
+    fn sum<I: Iterator<Item = Qty>>(iter: I) -> Qty {
+        iter.fold(Qty(0), |acc, x| Qty(acc.0 + x.0))
     }
 }
 

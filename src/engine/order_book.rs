@@ -26,7 +26,43 @@ pub struct OrderBook {
     pub sell_orders: BTreeMap<Price, VecDeque<Order>>,
 }
 
+#[derive(Debug, PartialEq)]
+pub struct Level {
+    pub price: Price,
+    pub quantity: Qty,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct BookSnapshot {
+    pub bids: Vec<Level>,
+    pub asks: Vec<Level>,
+}
+
 impl OrderBook {
+    pub fn top_levels(&self, depth: usize) -> BookSnapshot {
+        BookSnapshot {
+            bids: self
+                .buy_orders
+                .iter()
+                .rev()
+                .take(depth)
+                .map(|(&price, level)| Level {
+                    price,
+                    quantity: level.iter().map(|order| order.quantity).sum(),
+                })
+                .collect(), // sum each VecDeque
+            asks: self
+                .sell_orders
+                .iter()
+                .take(depth)
+                .map(|(&price, level)| Level {
+                    price,
+                    quantity: level.iter().map(|order| order.quantity).sum(),
+                })
+                .collect(),
+        }
+    }
+
     pub fn match_market_order(
         &mut self,
         order_id: OrderId,
@@ -244,6 +280,68 @@ impl OrderBook {
 mod tests {
     use super::*;
     use crate::engine::order::{OrderId, Qty};
+
+    #[test]
+    fn snapshot_is_valid() {
+        let order_book = OrderBook {
+            buy_orders: BTreeMap::from([
+                (
+                    Price(90),
+                    VecDeque::from([Order {
+                        order_id: OrderId(1),
+                        price: Price(90),
+                        quantity: Qty(3),
+                        side: Side::Buy,
+                    }]),
+                ),
+                (
+                    Price(89),
+                    VecDeque::from([Order {
+                        order_id: OrderId(2),
+                        price: Price(89),
+                        quantity: Qty(3),
+                        side: Side::Buy,
+                    }]),
+                ),
+            ]),
+            sell_orders: BTreeMap::from([(
+                Price(100),
+                VecDeque::from([
+                    Order {
+                        order_id: OrderId(3),
+                        price: Price(100),
+                        quantity: Qty(3),
+                        side: Side::Sell,
+                    },
+                    Order {
+                        order_id: OrderId(4),
+                        price: Price(100),
+                        quantity: Qty(4),
+                        side: Side::Sell,
+                    },
+                ]),
+            )]),
+        };
+
+        let snapshot = BookSnapshot {
+            bids: Vec::from([
+                Level {
+                    price: Price(90),
+                    quantity: Qty(3),
+                },
+                Level {
+                    price: Price(89),
+                    quantity: Qty(3),
+                },
+            ]),
+            asks: Vec::from([Level {
+                price: Price(100),
+                quantity: Qty(7),
+            }]),
+        };
+
+        assert_eq!(order_book.top_levels(2), snapshot);
+    }
 
     #[test]
     fn limit_sell_order_is_added_to_order_book_if_there_is_no_matching_order() {
