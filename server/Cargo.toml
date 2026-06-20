@@ -1,0 +1,7 @@
+[package]
+name = "rock-matching-server"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rock-matching-engine = { path = "../engine" }

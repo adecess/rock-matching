@@ -33,11 +33,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "rock-matching"
+name = "rock-matching-engine"
 version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "rock-matching-server"
+version = "0.1.0"
+dependencies = [
+ "rock-matching-engine",
 ]
 
 [[package]]

@@ -1,9 +1,9 @@
-use rock_matching::engine::core::Command::{CancelOrder, SubmitOrder};
-use rock_matching::engine::core::OrderType::Limit;
-use rock_matching::engine::core::{ApplyError, Command, Engine, Timestamp};
-use rock_matching::engine::log::{append_command, read_commands};
-use rock_matching::engine::order::{OrderId, Price, Qty, Side};
-use rock_matching::engine::order_book::Event;
+use rock_matching_engine::Command::{CancelOrder, SubmitOrder};
+use rock_matching_engine::OrderType::Limit;
+use rock_matching_engine::replay::{append_command, read_commands};
+use rock_matching_engine::{
+    ApplyError, Command, Engine, Event, OrderId, Price, Qty, Side, Timestamp,
+};
 
 fn run(commands: &[Command]) -> (Engine, Vec<Result<Vec<Event>, ApplyError>>) {
     let mut engine = Engine::default();
