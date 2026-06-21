@@ -10,8 +10,10 @@ async fn main() {
     let handle = tokio::spawn(async move {
         while let Some(command) = rx.recv().await {
             let events = engine.apply(command).unwrap();
+            let snapshot = engine.top_levels(10);
 
             println!("{events:?}");
+            println!("{snapshot:?}");
         }
     });
 
@@ -21,8 +23,8 @@ async fn main() {
         side: Side::Buy,
         order_type: Limit(Price(102)),
     })
-        .await
-        .unwrap();
+    .await
+    .unwrap();
 
     tx.send(SubmitOrder {
         timestamp: Timestamp(2),
@@ -30,8 +32,8 @@ async fn main() {
         side: Side::Sell,
         order_type: Limit(Price(101)),
     })
-        .await
-        .unwrap();
+    .await
+    .unwrap();
 
     drop(tx);
     handle.await.unwrap();
