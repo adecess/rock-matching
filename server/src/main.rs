@@ -1,7 +1,7 @@
-use tokio::sync::mpsc::channel;
-use rock_matching_engine::{Command, Engine, Price, Qty, Side, Timestamp};
 use rock_matching_engine::Command::SubmitOrder;
 use rock_matching_engine::OrderType::Limit;
+use rock_matching_engine::{Command, Engine, Price, Qty, Side, Timestamp};
+use tokio::sync::mpsc::channel;
 
 #[tokio::main]
 async fn main() {
@@ -10,7 +10,8 @@ async fn main() {
     let handle = tokio::spawn(async move {
         while let Some(command) = rx.recv().await {
             let events = engine.apply(command).unwrap();
-            println!("{:?}", events);
+
+            println!("{events:?}");
         }
     });
 
@@ -19,14 +20,18 @@ async fn main() {
         quantity: Qty(1),
         side: Side::Buy,
         order_type: Limit(Price(102)),
-    }).await.unwrap();
+    })
+        .await
+        .unwrap();
 
     tx.send(SubmitOrder {
         timestamp: Timestamp(2),
         quantity: Qty(1),
         side: Side::Sell,
         order_type: Limit(Price(101)),
-    }).await.unwrap();
+    })
+        .await
+        .unwrap();
 
     drop(tx);
     handle.await.unwrap();

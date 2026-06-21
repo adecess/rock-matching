@@ -1,5 +1,5 @@
 use crate::engine::order::{Order, OrderId, Price, Qty, Side};
-use crate::engine::order_book::{Event, OrderBook};
+use crate::engine::order_book::{BookSnapshot, Event, Level, OrderBook};
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize, Debug, Clone)]
@@ -110,18 +110,103 @@ impl Engine {
 
         id
     }
+
+    pub fn top_levels(&self, depth: usize) -> BookSnapshot {
+        BookSnapshot {
+            bids: self
+                .order_book
+                .buy_orders
+                .iter()
+                .rev()
+                .take(depth)
+                .map(|(&price, level)| Level {
+                    price,
+                    quantity: level.iter().map(|order| order.quantity).sum(),
+                })
+                .collect(), // sum each VecDeque
+            asks: self
+                .order_book
+                .sell_orders
+                .iter()
+                .take(depth)
+                .map(|(&price, level)| Level {
+                    price,
+                    quantity: level.iter().map(|order| order.quantity).sum(),
+                })
+                .collect(),
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::engine::core::ApplyError::{
-        InvalidPrice, InvalidQuantity, OrderNotFound, TimestampRegression,
-    };
-    use crate::engine::core::Command::{CancelOrder, SubmitOrder};
+    use crate::ApplyError::{InvalidPrice, InvalidQuantity, OrderNotFound, TimestampRegression};
+    use crate::Command::{CancelOrder, SubmitOrder};
+    use crate::Event;
     use crate::engine::core::OrderType::{Limit, Market};
     use crate::engine::core::{Command, Engine, Timestamp};
     use crate::engine::order::{OrderId, Price, Qty, Side};
-    use crate::engine::order_book::Event;
+    use crate::engine::order_book::{BookSnapshot, Level};
+
+    #[test]
+    fn snapshot_is_valid() {
+        let mut engine = Engine::default();
+
+        engine
+            .apply(Command::SubmitOrder {
+                timestamp: Timestamp(1),
+                quantity: Qty(3),
+                side: Side::Buy,
+                order_type: Limit(Price(90)),
+            })
+            .expect("First buy order submission failed");
+
+        engine
+            .apply(Command::SubmitOrder {
+                timestamp: Timestamp(2),
+                quantity: Qty(3),
+                side: Side::Buy,
+                order_type: Limit(Price(89)),
+            })
+            .expect("Second buy order submission failed");
+
+        engine
+            .apply(Command::SubmitOrder {
+                timestamp: Timestamp(3),
+                quantity: Qty(3),
+                side: Side::Sell,
+                order_type: Limit(Price(100)),
+            })
+            .expect("Third buy order submission failed");
+
+        engine
+            .apply(Command::SubmitOrder {
+                timestamp: Timestamp(4),
+                quantity: Qty(4),
+                side: Side::Sell,
+                order_type: Limit(Price(100)),
+            })
+            .expect("Fourth buy order submission failed");
+
+        let snapshot = BookSnapshot {
+            bids: Vec::from([
+                Level {
+                    price: Price(90),
+                    quantity: Qty(3),
+                },
+                Level {
+                    price: Price(89),
+                    quantity: Qty(3),
+                },
+            ]),
+            asks: Vec::from([Level {
+                price: Price(100),
+                quantity: Qty(7),
+            }]),
+        };
+
+        assert_eq!(engine.top_levels(2), snapshot);
+    }
 
     #[test]
     fn limit_orders_are_successfully_submitted_and_trade() {
