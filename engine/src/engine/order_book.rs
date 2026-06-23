@@ -26,13 +26,13 @@ pub struct OrderBook {
     pub sell_orders: BTreeMap<Price, VecDeque<Order>>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Level {
     pub price: Price,
     pub quantity: Qty,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct BookSnapshot {
     pub bids: Vec<Level>,
     pub asks: Vec<Level>,

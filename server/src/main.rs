@@ -1,19 +1,45 @@
 use rock_matching_engine::Command::SubmitOrder;
 use rock_matching_engine::OrderType::Limit;
-use rock_matching_engine::{Command, Engine, Price, Qty, Side, Timestamp};
-use tokio::sync::mpsc::channel;
+use rock_matching_engine::{BookSnapshot, Command, Engine, Event, Price, Qty, Side, Timestamp};
+use tokio::sync::broadcast;
+use tokio::sync::mpsc;
+
+#[derive(Debug, Clone)]
+struct ServerEvent {
+    snapshot: BookSnapshot,
+    last_price: Option<Price>,
+}
 
 #[tokio::main]
 async fn main() {
-    let (tx, mut rx) = channel::<Command>(100);
     let mut engine = Engine::default();
-    let handle = tokio::spawn(async move {
+
+    let (broadcast_tx, mut broadcast_rx) = broadcast::channel::<ServerEvent>(16);
+    let listener_handle = tokio::spawn(async move {
+        while let Ok(server_event) = broadcast_rx.recv().await {
+            println!(
+                "bids: {:?}, asks: {:?}, last_price: {:?}",
+                server_event.snapshot.bids, server_event.snapshot.asks, server_event.last_price
+            );
+        }
+    });
+
+    let (tx, mut rx) = mpsc::channel::<Command>(100);
+    let engine_handle = tokio::spawn(async move {
         while let Some(command) = rx.recv().await {
             let events = engine.apply(command).unwrap();
-            let snapshot = engine.top_levels(10);
+            let mut last_price = None;
+            for event in events {
+                if let Event::OrderTraded { price, .. } = event {
+                    last_price = Some(price);
+                }
+            }
 
-            println!("{events:?}");
-            println!("{snapshot:?}");
+            let server_event = ServerEvent {
+                snapshot: engine.top_levels(10),
+                last_price,
+            };
+            let _ = broadcast_tx.send(server_event);
         }
     });
 
@@ -36,5 +62,6 @@ async fn main() {
     .unwrap();
 
     drop(tx);
-    handle.await.unwrap();
+    engine_handle.await.unwrap();
+    listener_handle.await.unwrap();
 }
