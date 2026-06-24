@@ -1,11 +1,11 @@
 mod engine_task;
+mod maker_bot;
 mod types;
 
 use crate::engine_task::run_engine_task;
+use crate::maker_bot::run_maker_bot;
 use crate::types::ServerEvent;
-use rock_matching_engine::Command::SubmitOrder;
-use rock_matching_engine::OrderType::Limit;
-use rock_matching_engine::{Command, Engine, Price, Qty, Side, Timestamp};
+use rock_matching_engine::{Command, Engine};
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 
@@ -28,34 +28,16 @@ async fn main() {
         run_engine_task(rx, broadcast_tx, engine).await;
     });
 
-    tx.send(SubmitOrder {
-        timestamp: Timestamp(1),
-        quantity: Qty(4),
-        side: Side::Buy,
-        order_type: Limit(Price(102)),
-    })
-    .await
-    .unwrap();
-
-    tx.send(SubmitOrder {
-        timestamp: Timestamp(2),
-        quantity: Qty(1),
-        side: Side::Sell,
-        order_type: Limit(Price(101)),
-    })
-    .await
-    .unwrap();
-
-    tx.send(SubmitOrder {
-        timestamp: Timestamp(3),
-        quantity: Qty(1),
-        side: Side::Buy,
-        order_type: Limit(Price(100)),
-    })
-    .await
-    .unwrap();
+    let maker_tx = tx.clone();
+    let maker_handle = tokio::spawn(async move {
+        run_maker_bot(maker_tx).await
+    });
 
     drop(tx);
+
+    if let Err(error) = maker_handle.await.unwrap() {
+        eprintln!("maker bot failed: {error:?}");
+    }
     engine_handle.await.unwrap();
     listener_handle.await.unwrap();
 }
