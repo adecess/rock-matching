@@ -1,9 +1,11 @@
 mod engine_task;
 mod maker_bot;
+mod taker_bot;
 mod types;
 
 use crate::engine_task::run_engine_task;
 use crate::maker_bot::run_maker_bot;
+use crate::taker_bot::run_taker_bot;
 use crate::types::{CommandIntent, ServerEvent};
 use rock_matching_engine::Engine;
 use tokio::sync::broadcast;
@@ -30,12 +32,17 @@ async fn main() {
 
     let maker_tx = tx.clone();
     let maker_handle = tokio::spawn(async move { run_maker_bot(maker_tx).await });
-
-    drop(tx);
-
     if let Err(error) = maker_handle.await.unwrap() {
         eprintln!("maker bot failed: {error:?}");
     }
+
+    let taker_tx = tx.clone();
+    let taker_handle = tokio::spawn(async move { run_taker_bot(taker_tx).await });
+    if let Err(error) = taker_handle.await.unwrap() {
+        eprintln!("taker bot failed: {error:?}");
+    }
+
+    drop(tx);
     engine_handle.await.unwrap();
     listener_handle.await.unwrap();
 }
