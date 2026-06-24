@@ -4,8 +4,8 @@ mod types;
 
 use crate::engine_task::run_engine_task;
 use crate::maker_bot::run_maker_bot;
-use crate::types::ServerEvent;
-use rock_matching_engine::{Command, Engine};
+use crate::types::{CommandIntent, ServerEvent};
+use rock_matching_engine::Engine;
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 
@@ -23,15 +23,13 @@ async fn main() {
         }
     });
 
-    let (tx, rx) = mpsc::channel::<Command>(100);
+    let (tx, rx) = mpsc::channel::<CommandIntent>(100);
     let engine_handle = tokio::spawn(async move {
         run_engine_task(rx, broadcast_tx, engine).await;
     });
 
     let maker_tx = tx.clone();
-    let maker_handle = tokio::spawn(async move {
-        run_maker_bot(maker_tx).await
-    });
+    let maker_handle = tokio::spawn(async move { run_maker_bot(maker_tx).await });
 
     drop(tx);
 

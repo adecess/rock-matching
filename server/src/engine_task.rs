@@ -1,16 +1,20 @@
-use crate::types::ServerEvent;
-use rock_matching_engine::{Command, Engine, Event};
+use crate::types::{CommandIntent, ServerEvent};
+use rock_matching_engine::{Command, Engine, Event, Timestamp};
 use tokio::sync::broadcast::Sender;
 use tokio::sync::mpsc::Receiver;
 
 pub(crate) async fn run_engine_task(
-    mut mpsc_receiver: Receiver<Command>,
+    mut mpsc_receiver: Receiver<CommandIntent>,
     broadcast_sender: Sender<ServerEvent>,
     mut engine: Engine,
 ) {
     let mut last_price = None;
+    let mut next_timestamp = 0u64;
 
-    while let Some(command) = mpsc_receiver.recv().await {
+    while let Some(command_intent) = mpsc_receiver.recv().await {
+        next_timestamp += 1;
+
+        let command = intent_to_command(command_intent, next_timestamp);
         match engine.apply(command) {
             Ok(events) => {
                 for event in events {
@@ -29,5 +33,25 @@ pub(crate) async fn run_engine_task(
                 eprintln!("failed to apply command: {error:?}");
             }
         }
+    }
+}
+
+fn intent_to_command(command_intent: CommandIntent, next_timestamp: u64) -> Command {
+    match command_intent {
+        CommandIntent::SubmitOrder {
+            quantity,
+            side,
+            order_type,
+        } => Command::SubmitOrder {
+            timestamp: Timestamp(next_timestamp),
+            quantity,
+            side,
+            order_type,
+        },
+
+        CommandIntent::CancelOrder { order_id } => Command::CancelOrder {
+            timestamp: Timestamp(next_timestamp),
+            order_id,
+        },
     }
 }
