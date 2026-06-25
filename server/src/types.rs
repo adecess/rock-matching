@@ -16,3 +16,17 @@ pub(crate) enum CommandIntent {
         order_id: OrderId,
     },
 }
+
+pub(crate) struct MakerBotConfig {
+    pub(crate) reference_price: Price,
+    pub(crate) half_spread: Price,
+    pub(crate) quantity: Qty,
+    pub(crate) delay_ms: u64,
+}
+
+pub(crate) struct MakerBotRuntimeConfig {
+    pub(crate) bid_price: Price,
+    pub(crate) ask_price: Price,
+    pub(crate) quantity: Qty,
+    pub(crate) delay_ms: u64,
+}
