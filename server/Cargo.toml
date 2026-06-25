@@ -5,4 +5,4 @@ edition = "2024"
 
 [dependencies]
 rock-matching-engine = { path = "../engine" }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "signal"] }

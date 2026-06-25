@@ -16,7 +16,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let engine = Engine::default();
 
     let (broadcast_tx, mut broadcast_rx) = broadcast::channel::<ServerEvent>(16);
-    let listener_handle = tokio::spawn(async move {
+    tokio::spawn(async move {
         while let Ok(server_event) = broadcast_rx.recv().await {
             println!(
                 "bids: {:?}, asks: {:?}, last_price: {:?}",
@@ -26,7 +26,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let (tx, rx) = mpsc::channel::<CommandIntent>(100);
-    let engine_handle = tokio::spawn(async move {
+    tokio::spawn(async move {
         run_engine_task(rx, broadcast_tx, engine).await;
     });
 
@@ -37,21 +37,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         quantity: Qty(1),
         delay_ms: 100,
     })?;
-
-    let maker_handle = tokio::spawn(async move { run_maker_bot(maker_tx, maker_config).await });
-    if let Err(error) = maker_handle.await? {
-        eprintln!("maker bot failed: {error:?}");
-    }
+    tokio::spawn(async move { run_maker_bot(maker_tx, maker_config).await });
 
     let taker_tx = tx.clone();
-    let taker_handle = tokio::spawn(async move { run_taker_bot(taker_tx).await });
-    if let Err(error) = taker_handle.await? {
-        eprintln!("taker bot failed: {error:?}");
-    }
+    tokio::spawn(async move { run_taker_bot(taker_tx).await });
 
-    drop(tx);
-    engine_handle.await?;
-    listener_handle.await?;
+    println!("server running; press Ctrl+C to stop");
+
+    tokio::signal::ctrl_c().await?;
+
+    println!("shutdown requested");
 
     Ok(())
 }

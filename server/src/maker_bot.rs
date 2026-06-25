@@ -42,7 +42,7 @@ pub(crate) async fn run_maker_bot(
     sender: Sender<CommandIntent>,
     config: MakerBotRuntimeConfig,
 ) -> Result<(), SendError<CommandIntent>> {
-    for _round in 0..3 {
+    loop {
         sender
             .send(SubmitOrder {
                 quantity: config.quantity,
@@ -61,6 +61,4 @@ pub(crate) async fn run_maker_bot(
 
         sleep(Duration::from_millis(config.delay_ms)).await;
     }
-
-    Ok(())
 }
