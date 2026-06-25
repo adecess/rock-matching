@@ -10,15 +10,15 @@ use tokio::time::sleep;
 pub(crate) async fn run_taker_bot(
     sender: Sender<CommandIntent>,
 ) -> Result<(), SendError<CommandIntent>> {
-    sender
-        .send(SubmitOrder {
-            quantity: Qty(1),
-            side: Side::Buy,
-            order_type: Market,
-        })
-        .await?;
+    loop {
+        sleep(Duration::from_millis(1000)).await;
 
-    sleep(Duration::from_millis(100)).await;
-
-    Ok(())
+        sender
+            .send(SubmitOrder {
+                quantity: Qty(1),
+                side: Side::Buy,
+                order_type: Market,
+            })
+            .await?;
+    }
 }
