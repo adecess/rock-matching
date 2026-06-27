@@ -1,7 +1,7 @@
 use crate::types::CommandIntent::SubmitOrder;
 use crate::types::{CommandIntent, TakerBotConfig};
 use rock_matching_engine::OrderType::Market;
-use rock_matching_engine::{Side};
+use rock_matching_engine::Side;
 use std::time::Duration;
 use tokio::sync::mpsc::Sender;
 use tokio::sync::mpsc::error::SendError;
