@@ -1,14 +1,15 @@
-use std::fmt::Write;
 mod engine_task;
 mod maker_bot;
 mod taker_bot;
+mod terminal_view;
 mod types;
 
 use crate::engine_task::run_engine_task;
 use crate::maker_bot::{run_maker_bot, validate_maker_config};
 use crate::taker_bot::{run_taker_bot, validate_taker_config};
+use crate::terminal_view::format_levels;
 use crate::types::{CommandIntent, MakerBotConfig, ServerEvent, TakerBotConfig};
-use rock_matching_engine::{Engine, Level, Price, Qty};
+use rock_matching_engine::{Engine, Price, Qty};
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
 
@@ -23,7 +24,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "bids: {:?}, asks: {:?}, last_price: {:?}",
                 format_levels(&server_event.snapshot.bids),
                 format_levels(&server_event.snapshot.asks),
-                server_event.last_price
+                server_event
+                    .last_price
+                    .map(|price| price.0.to_string())
+                    .unwrap_or_else(|| "No price".to_string())
             );
         }
     });
@@ -56,16 +60,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("shutdown requested");
 
     Ok(())
-}
-
-fn format_levels(levels: &[Level]) -> String {
-    let mut formatted_levels = String::new();
-    for (i, level) in levels.iter().enumerate() {
-        if i > 0 {
-            formatted_levels.push_str(" ");
-        }
-        write!(&mut formatted_levels, "{:?}x{:?}", level.price.0, level.quantity.0).unwrap();
-    }
-
-    formatted_levels
 }
