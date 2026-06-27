@@ -30,3 +30,8 @@ pub(crate) struct MakerBotRuntimeConfig {
     pub(crate) quantity: Qty,
     pub(crate) delay_ms: u64,
 }
+
+pub(crate) struct TakerBotConfig {
+    pub(crate) quantity: Qty,
+    pub(crate) delay_ms: u64,
+}
