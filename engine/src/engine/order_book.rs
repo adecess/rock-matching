@@ -4,7 +4,7 @@ use std::collections::btree_map::Entry;
 use std::collections::btree_map::OccupiedEntry;
 use std::collections::{BTreeMap, VecDeque};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub enum Event {
     OrderTraded {
         taker: OrderId,

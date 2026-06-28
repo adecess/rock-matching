@@ -32,7 +32,7 @@ impl Sum for Qty {
 }
 
 // represents resting state on the book (which only limit orders achieve)
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub struct Order {
     pub order_id: OrderId,
     pub price: Price,
