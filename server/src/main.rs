@@ -9,9 +9,9 @@ use crate::maker_bot::{run_maker_bot, validate_maker_config};
 use crate::taker_bot::{run_taker_bot, validate_taker_config};
 use crate::terminal_view::format_levels;
 use crate::types::{CommandIntent, MakerBotConfig, ServerEvent, TakerBotConfig};
+use axum::{Router, routing::get};
 use rock_matching_engine::{Engine, Price, Qty};
-use tokio::sync::broadcast;
-use tokio::sync::mpsc;
+use tokio::sync::{broadcast, mpsc};
 use tokio_util::sync::CancellationToken;
 
 #[tokio::main]
@@ -59,12 +59,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let taker_handle =
         tokio::spawn(async move { run_taker_bot(taker_tx, taker_config, taker_shutdown).await });
 
+    let app = Router::new().route("/health", get(|| async { "Server is up on port 3000." }));
+    let tcp_listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
+    let server_result = axum::serve(tcp_listener, app)
+        .with_graceful_shutdown(shutdown_signal(shutdown.clone()))
+        .await;
+
     println!("server running; press Ctrl+C to stop");
 
-    tokio::signal::ctrl_c().await?;
     shutdown.cancel();
 
-    println!("shutdown requested");
+    server_result?;
 
     let maker_result = maker_handle.await;
     match maker_result {
@@ -101,4 +106,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("listener stopped cleanly");
 
     Ok(())
+}
+
+async fn shutdown_signal(shutdown: CancellationToken) {
+    let _ = tokio::signal::ctrl_c().await;
+    println!("shutdown requested");
+    shutdown.cancel();
 }
