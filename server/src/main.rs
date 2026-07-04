@@ -12,13 +12,15 @@ use crate::types::{CommandIntent, MakerBotConfig, ServerEvent, TakerBotConfig};
 use rock_matching_engine::{Engine, Price, Qty};
 use tokio::sync::broadcast;
 use tokio::sync::mpsc;
+use tokio_util::sync::CancellationToken;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let shutdown = CancellationToken::new();
     let engine = Engine::default();
 
     let (broadcast_tx, mut broadcast_rx) = broadcast::channel::<ServerEvent>(16);
-    tokio::spawn(async move {
+    let listener_handle = tokio::spawn(async move {
         while let Ok(server_event) = broadcast_rx.recv().await {
             println!(
                 "bids: {:?}, asks: {:?}, last_price: {:?}",
@@ -33,7 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let (tx, rx) = mpsc::channel::<CommandIntent>(100);
-    tokio::spawn(async move {
+    let engine_handle = tokio::spawn(async move {
         run_engine_task(rx, broadcast_tx, engine).await;
     });
 
@@ -44,20 +46,59 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         quantity: Qty(1),
         delay_ms: 100,
     })?;
-    tokio::spawn(async move { run_maker_bot(maker_tx, maker_config).await });
+    let maker_shutdown = shutdown.clone();
+    let maker_handle =
+        tokio::spawn(async move { run_maker_bot(maker_tx, maker_config, maker_shutdown).await });
 
     let taker_tx = tx.clone();
     let taker_config = validate_taker_config(TakerBotConfig {
         quantity: Qty(1),
         delay_ms: 1000,
     })?;
-    tokio::spawn(async move { run_taker_bot(taker_tx, taker_config).await });
+    let taker_shutdown = shutdown.clone();
+    let taker_handle =
+        tokio::spawn(async move { run_taker_bot(taker_tx, taker_config, taker_shutdown).await });
 
     println!("server running; press Ctrl+C to stop");
 
     tokio::signal::ctrl_c().await?;
+    shutdown.cancel();
 
     println!("shutdown requested");
+
+    let maker_result = maker_handle.await;
+    match maker_result {
+        Ok(Ok(())) => {
+            println!("maker stopped cleanly");
+        }
+        Ok(Err(error)) => {
+            eprintln!("maker failed to send command: {error:?}");
+        }
+        Err(error) => {
+            eprintln!("maker task failed: {error:?}");
+        }
+    }
+
+    let taker_result = taker_handle.await;
+    match taker_result {
+        Ok(Ok(())) => {
+            println!("taker stopped cleanly");
+        }
+        Ok(Err(error)) => {
+            eprintln!("taker failed to send command: {error:?}");
+        }
+        Err(error) => {
+            eprintln!("taker task failed: {error:?}");
+        }
+    }
+
+    drop(tx);
+
+    engine_handle.await?;
+    println!("engine task stopped cleanly");
+
+    listener_handle.await?;
+    println!("listener stopped cleanly");
 
     Ok(())
 }

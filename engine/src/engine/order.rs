@@ -26,22 +26,22 @@ impl Sub for Qty {
 }
 
 impl Sum for Qty {
-    fn sum<I: Iterator<Item = Qty>>(iter: I) -> Qty {
+    fn sum<I: Iterator<Item=Qty>>(iter: I) -> Qty {
         iter.fold(Qty(0), |acc, x| Qty(acc.0 + x.0))
     }
 }
 
 // represents resting state on the book (which only limit orders achieve)
 #[derive(Debug, PartialEq)]
-pub struct Order {
-    pub order_id: OrderId,
-    pub price: Price,
-    pub quantity: Qty,
-    pub side: Side,
+pub(crate) struct Order {
+    pub(crate) order_id: OrderId,
+    pub(crate) price: Price,
+    pub(crate) quantity: Qty,
+    pub(crate) side: Side,
 }
 
 impl Order {
-    pub fn new(order_id: OrderId, price: Price, quantity: Qty, side: Side) -> Order {
+    pub(crate) fn new(order_id: OrderId, price: Price, quantity: Qty, side: Side) -> Order {
         Order {
             order_id,
             price,

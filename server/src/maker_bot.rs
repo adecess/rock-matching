@@ -5,6 +5,7 @@ use rock_matching_engine::{Price, Side};
 use tokio::sync::mpsc::Sender;
 use tokio::sync::mpsc::error::SendError;
 use tokio::time::{Duration, sleep};
+use tokio_util::sync::CancellationToken;
 
 pub(crate) fn validate_maker_config(
     config: MakerBotConfig,
@@ -41,6 +42,7 @@ pub(crate) fn validate_maker_config(
 pub(crate) async fn run_maker_bot(
     sender: Sender<CommandIntent>,
     config: MakerBotRuntimeConfig,
+    shutdown: CancellationToken,
 ) -> Result<(), SendError<CommandIntent>> {
     loop {
         sender
@@ -59,6 +61,16 @@ pub(crate) async fn run_maker_bot(
             })
             .await?;
 
-        sleep(Duration::from_millis(config.delay_ms)).await;
+        tokio::select! {
+            _ = sleep(Duration::from_millis(config.delay_ms)) => {
+                continue
+            }
+            _ = shutdown.cancelled() => {
+                break
+            }
+
+        }
     }
+
+    Ok(())
 }

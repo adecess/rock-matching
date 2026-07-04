@@ -7,3 +7,4 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 rock-matching-engine = { path = "../engine" }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "time", "signal"] }
+tokio-util = "0.7.18"
