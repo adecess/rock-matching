@@ -19,19 +19,16 @@ pub(crate) enum CommandIntent {
 
 pub(crate) struct MakerBotConfig {
     pub(crate) reference_price: Price,
-    pub(crate) half_spread: Price,
-    pub(crate) quantity: Qty,
-    pub(crate) delay_ms: u64,
-}
-
-pub(crate) struct MakerBotRuntimeConfig {
-    pub(crate) bid_price: Price,
-    pub(crate) ask_price: Price,
-    pub(crate) quantity: Qty,
+    pub(crate) max_bid_distance: Price,
+    pub(crate) max_ask_distance: Price,
+    pub(crate) max_quantity: Qty,
+    pub(crate) min_quantity: Qty,
     pub(crate) delay_ms: u64,
 }
 
 pub(crate) struct TakerBotConfig {
-    pub(crate) quantity: Qty,
+    pub(crate) min_quantity: Qty,
+    pub(crate) max_quantity: Qty,
     pub(crate) delay_ms: u64,
+    pub(crate) startup_delay_ms: u64,
 }

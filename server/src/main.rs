@@ -42,8 +42,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let maker_tx = tx.clone();
     let maker_config = validate_maker_config(MakerBotConfig {
         reference_price: Price(100),
-        half_spread: Price(1),
-        quantity: Qty(1),
+        max_bid_distance: Price(10),
+        max_ask_distance: Price(10),
+        max_quantity: Qty(10),
+        min_quantity: Qty(1),
         delay_ms: 100,
     })?;
     let maker_shutdown = shutdown.clone();
@@ -52,8 +54,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let taker_tx = tx.clone();
     let taker_config = validate_taker_config(TakerBotConfig {
-        quantity: Qty(1),
-        delay_ms: 1000,
+        max_quantity: Qty(10),
+        min_quantity: Qty(1),
+        delay_ms: 100,
+        startup_delay_ms: 250,
     })?;
     let taker_shutdown = shutdown.clone();
     let taker_handle =
