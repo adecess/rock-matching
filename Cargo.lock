@@ -473,6 +473,7 @@ dependencies = [
  "axum",
  "rand 0.10.2",
  "rock-matching-engine",
+ "serde",
  "tokio",
  "tokio-util",
 ]

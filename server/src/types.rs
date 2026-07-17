@@ -1,6 +1,7 @@
 use rock_matching_engine::{BookSnapshot, OrderId, OrderType, Price, Qty, Side};
+use serde::Serialize;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub(crate) struct ServerEvent {
     pub(crate) snapshot: BookSnapshot,
     pub(crate) last_price: Option<Price>,
