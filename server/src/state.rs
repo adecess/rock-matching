@@ -5,9 +5,3 @@ use tokio::sync::broadcast::Sender;
 pub struct AppState {
     pub(crate) broadcast_sender: Sender<ServerEvent>,
 }
-
-impl AppState {
-    pub fn new(broadcast_sender: Sender<ServerEvent>) -> Self {
-        Self { broadcast_sender }
-    }
-}

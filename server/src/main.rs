@@ -1,4 +1,5 @@
 mod engine_task;
+mod handlers;
 mod maker_bot;
 mod state;
 mod taker_bot;
@@ -6,6 +7,7 @@ mod terminal_view;
 mod types;
 
 use crate::engine_task::run_engine_task;
+use crate::handlers::websocket_handler;
 use crate::maker_bot::{run_maker_bot, validate_maker_config};
 use crate::state::AppState;
 use crate::taker_bot::{run_taker_bot, validate_taker_config};
@@ -68,7 +70,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let app = Router::new()
         .route("/health", get(|| async { "Server is up on port 3000." }))
-        .with_state(AppState::new(server_broadcast_sender));
+        .route("/ws", get(websocket_handler))
+        .with_state(AppState {
+            broadcast_sender: server_broadcast_sender,
+        });
     let tcp_listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
     let server_result = axum::serve(tcp_listener, app)
         .with_graceful_shutdown(shutdown_signal(shutdown.clone()))
