@@ -26,7 +26,7 @@ impl Sub for Qty {
 }
 
 impl Sum for Qty {
-    fn sum<I: Iterator<Item=Qty>>(iter: I) -> Qty {
+    fn sum<I: Iterator<Item = Qty>>(iter: I) -> Qty {
         iter.fold(Qty(0), |acc, x| Qty(acc.0 + x.0))
     }
 }
