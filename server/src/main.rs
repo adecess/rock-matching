@@ -27,15 +27,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let server_broadcast_sender = broadcast_tx.clone();
     let listener_handle = tokio::spawn(async move {
         while let Ok(server_event) = broadcast_rx.recv().await {
-            println!(
-                "bids: {:?}, asks: {:?}, last_price: {:?}",
-                format_levels(&server_event.snapshot.bids),
-                format_levels(&server_event.snapshot.asks),
-                server_event
-                    .last_price
-                    .map(|price| price.0.to_string())
-                    .unwrap_or_else(|| "No price".to_string())
-            );
+            print_server_events(&server_event)
         }
     });
 
@@ -126,4 +118,16 @@ async fn shutdown_signal(shutdown: CancellationToken) {
     let _ = tokio::signal::ctrl_c().await;
     println!("shutdown requested");
     shutdown.cancel();
+}
+
+fn print_server_events(server_event: &ServerEvent) {
+    println!(
+        "bids: {:?}, asks: {:?}, last_price: {:?}",
+        format_levels(&server_event.snapshot.bids),
+        format_levels(&server_event.snapshot.asks),
+        server_event
+            .last_price
+            .map(|price| price.0.to_string())
+            .unwrap_or_else(|| "No price".to_string())
+    );
 }
