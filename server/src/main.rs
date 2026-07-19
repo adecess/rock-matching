@@ -15,7 +15,7 @@ use crate::terminal_view::format_levels;
 use crate::types::{CommandIntent, MakerBotConfig, ServerEvent, TakerBotConfig};
 use axum::{Router, routing::get};
 use rock_matching_engine::{Engine, Price, Qty};
-use tokio::sync::{broadcast, mpsc};
+use tokio::sync::{broadcast, mpsc, watch};
 use tokio_util::sync::CancellationToken;
 
 #[tokio::main]
@@ -25,6 +25,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let (broadcast_tx, mut broadcast_rx) = broadcast::channel::<ServerEvent>(16);
     let server_broadcast_sender = broadcast_tx.clone();
+    let server_latest_event_sender = watch::Sender::new(None::<ServerEvent>);
     let listener_handle = tokio::spawn(async move {
         while let Ok(server_event) = broadcast_rx.recv().await {
             print_server_events(&server_event)
@@ -32,8 +33,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let (tx, rx) = mpsc::channel::<CommandIntent>(100);
+    let engine_latest_event_sender = server_latest_event_sender.clone();
     let engine_handle = tokio::spawn(async move {
-        run_engine_task(rx, broadcast_tx, engine).await;
+        run_engine_task(rx, broadcast_tx, engine_latest_event_sender, engine).await;
     });
 
     let maker_tx = tx.clone();
@@ -64,7 +66,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/health", get(|| async { "Server is up on port 3000." }))
         .route("/ws", get(websocket_handler))
         .with_state(AppState {
-            broadcast_sender: server_broadcast_sender,
+            server_broadcast_sender,
+            server_latest_event_sender,
         });
     let tcp_listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
     let server_result = axum::serve(tcp_listener, app)
