@@ -1,40 +1,13 @@
 use crate::engine::core::Command;
 use std::io::{BufRead, BufReader, Read, Write};
+use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum LogError {
-    Io(std::io::Error),
-    Json(serde_json::Error),
-}
-
-impl std::fmt::Display for LogError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            LogError::Io(e) => write!(f, "log I/O error: {}", e),
-            LogError::Json(e) => write!(f, "log JSON parse error: {}", e),
-        }
-    }
-}
-
-impl std::error::Error for LogError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            LogError::Io(e) => Some(e),
-            LogError::Json(e) => Some(e),
-        }
-    }
-}
-
-impl From<std::io::Error> for LogError {
-    fn from(e: std::io::Error) -> Self {
-        LogError::Io(e)
-    }
-}
-
-impl From<serde_json::Error> for LogError {
-    fn from(e: serde_json::Error) -> Self {
-        LogError::Json(e)
-    }
+    #[error("log I/O error: {0}")]
+    Io(#[from] std::io::Error),
+    #[error("log JSON parse error: {0}")]
+    Json(#[from] serde_json::Error),
 }
 
 pub fn append_command<W: Write>(writer: &mut W, command: &Command) -> Result<(), LogError> {
@@ -58,9 +31,32 @@ pub fn read_commands<R: Read>(reader: R) -> Result<Vec<Command>, LogError> {
 mod tests {
     use crate::engine::core::Command::{CancelOrder, SubmitOrder};
     use crate::engine::core::OrderType::Limit;
-    use crate::engine::core::Timestamp;
-    use crate::engine::log::{append_command, read_commands};
+    use crate::engine::core::{Command, Timestamp};
+    use crate::engine::log::{LogError, append_command, read_commands};
     use crate::engine::order::{OrderId, Price, Qty, Side};
+    use std::error::Error as _;
+
+    fn assert_std_error<T: std::error::Error>() {}
+
+    #[test]
+    fn log_errors_are_standard_errors_with_sources() {
+        assert_std_error::<LogError>();
+
+        let io_source = std::io::Error::other("disk full");
+        let expected_io_message = format!("log I/O error: {io_source}");
+        let io_error = LogError::from(io_source);
+
+        assert_eq!(io_error.to_string(), expected_io_message);
+        assert!(io_error.source().is_some());
+
+        let json_source =
+            serde_json::from_str::<Command>("{").expect_err("invalid JSON should be rejected");
+        let expected_json_message = format!("log JSON parse error: {json_source}");
+        let json_error = LogError::from(json_source);
+
+        assert_eq!(json_error.to_string(), expected_json_message);
+        assert!(json_error.source().is_some());
+    }
 
     #[test]
     fn commands_format_is_consistent_after_encoding_and_decoding_back() {

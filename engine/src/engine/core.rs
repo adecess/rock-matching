@@ -1,6 +1,7 @@
 use crate::engine::order::{Order, OrderId, Price, Qty, Side};
 use crate::engine::order_book::{BookSnapshot, Event, Level, OrderBook};
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 #[derive(Default, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize, Debug, Clone)]
 #[serde(transparent)]
@@ -26,11 +27,18 @@ pub enum Command {
     },
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Error, PartialEq)]
 pub enum ApplyError {
+    #[error("order {} was not found", .0.0)]
     OrderNotFound(OrderId),
+    #[error("invalid price {}: price must be greater than zero", .0.0)]
     InvalidPrice(Price),
+    #[error(
+        "invalid quantity {}: quantity must be greater than zero",
+        .0.0
+    )]
     InvalidQuantity(Qty),
+    #[error("timestamp must be greater than the last applied timestamp")]
     TimestampRegression,
 }
 
@@ -147,6 +155,29 @@ mod tests {
     use crate::engine::core::{Command, Engine, Timestamp};
     use crate::engine::order::{OrderId, Price, Qty, Side};
     use crate::engine::order_book::{BookSnapshot, Level};
+
+    #[test]
+    fn apply_errors_have_clear_messages() {
+        let cases = [
+            (OrderNotFound(OrderId(42)), "order 42 was not found"),
+            (
+                InvalidPrice(Price(0)),
+                "invalid price 0: price must be greater than zero",
+            ),
+            (
+                InvalidQuantity(Qty(0)),
+                "invalid quantity 0: quantity must be greater than zero",
+            ),
+            (
+                TimestampRegression,
+                "timestamp must be greater than the last applied timestamp",
+            ),
+        ];
+
+        for (error, expected_message) in cases {
+            assert_eq!(error.to_string(), expected_message);
+        }
+    }
 
     #[test]
     fn snapshot_is_valid() {
@@ -267,7 +298,7 @@ mod tests {
                     price: Price(100),
                     quantity: Qty(1)
                 },
-                Event::OrderAddedToBook(OrderId(3), Side::Sell, Price(100), Qty(5),)
+                Event::OrderAddedToBook(OrderId(3), Side::Sell, Price(100), Qty(5))
             ]))
         );
     }
