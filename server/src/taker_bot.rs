@@ -49,9 +49,6 @@ pub(crate) async fn run_taker_bot(
         let quantity = Qty(random_range(config.min_quantity.0..=config.max_quantity.0));
 
         tokio::select! {
-            _ =  sleep(Duration::from_millis(config.startup_delay_ms)) => {
-                continue
-            }
             _ = sleep(Duration::from_millis(config.delay_ms)) => {
                 sender
                 .send(SubmitOrder {
@@ -73,4 +70,48 @@ pub(crate) async fn run_taker_bot(
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio::sync::mpsc;
+
+    #[tokio::test(start_paused = true)]
+    async fn sends_an_order_when_startup_delay_is_shorter_than_order_delay() {
+        let (sender, mut receiver) = mpsc::channel(1);
+        let shutdown = CancellationToken::new();
+        let bot_shutdown = shutdown.clone();
+        let bot = tokio::spawn(run_taker_bot(
+            sender,
+            TakerBotConfig {
+                min_quantity: Qty(1),
+                max_quantity: Qty(1),
+                delay_ms: 20,
+                startup_delay_ms: 10,
+            },
+            bot_shutdown,
+        ));
+
+        tokio::task::yield_now().await;
+        tokio::time::advance(Duration::from_millis(10)).await;
+        tokio::task::yield_now().await;
+        tokio::time::advance(Duration::from_millis(20)).await;
+        tokio::task::yield_now().await;
+
+        let command = receiver
+            .try_recv()
+            .expect("taker should submit an order after both delays");
+        assert!(matches!(
+            command,
+            SubmitOrder {
+                quantity: Qty(1),
+                side: Side::Buy,
+                order_type: Market,
+            }
+        ));
+
+        shutdown.cancel();
+        assert!(bot.await.expect("taker task should finish").is_ok());
+    }
 }
