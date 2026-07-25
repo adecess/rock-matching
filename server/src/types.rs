@@ -13,9 +13,8 @@ pub(crate) enum CommandIntent {
         side: Side,
         order_type: OrderType,
     },
-    CancelOrder {
-        order_id: OrderId,
-    },
+    #[allow(dead_code)]
+    CancelOrder { order_id: OrderId },
 }
 
 pub(crate) struct MakerBotConfig {
