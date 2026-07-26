@@ -6,22 +6,27 @@ on:
       - main
     paths:
       - "**/Cargo.toml"
-      - "Cargo.lock"
+      - "**/Cargo.lock"
+      - "**/audit.toml"
       - ".github/workflows/audit.yml"
+
   pull_request:
     paths:
       - "**/Cargo.toml"
-      - "Cargo.lock"
+      - "**/Cargo.lock"
+      - "**/audit.toml"
       - ".github/workflows/audit.yml"
+
   schedule:
     - cron: "0 6 * * *"
+
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: security-audit-${{ github.workflow }}-${{ github.ref }}
+  group: security-audit-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -29,6 +34,7 @@ jobs:
     name: Audit dependencies
     runs-on: ubuntu-latest
     timeout-minutes: 10
+
     permissions:
       contents: read
       checks: write
