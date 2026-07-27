@@ -12,19 +12,19 @@ pub(crate) async fn websocket_handler(
     State(state): State<AppState>,
 ) -> Response {
     let broadcast_rx = state.server_broadcast_sender.subscribe();
-    let latest_event_sender = state.server_latest_event_sender;
+    let latest_event_receiver = state.server_latest_event_receiver;
 
     ws.on_failed_upgrade(|error| println!("Error upgrading websocket: {}", error))
-        .on_upgrade(|socket| handle_socket(socket, broadcast_rx, latest_event_sender))
+        .on_upgrade(|socket| handle_socket(socket, broadcast_rx, latest_event_receiver))
 }
 
 async fn handle_socket(
     mut socket: WebSocket,
     mut broadcast_rx: Receiver<ServerEvent>,
-    latest_event_sender: watch::Sender<Option<ServerEvent>>,
+    latest_event_receiver: watch::Receiver<Option<ServerEvent>>,
 ) {
     // Send the latest snapshot immediately on connection
-    let latest_event = latest_event_sender.borrow().clone();
+    let latest_event = latest_event_receiver.borrow().clone();
     if let Some(latest_event) = latest_event {
         let result = socket
             .send(Message::from(serde_json::to_string(&latest_event).unwrap()))
