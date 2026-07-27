@@ -59,3 +59,80 @@ fn intent_to_command(command_intent: CommandIntent, next_timestamp: u64) -> Comm
         },
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rock_matching_engine::{OrderType, Price, Qty, Side};
+    use std::time::Duration;
+    use tokio::sync::{broadcast, mpsc, watch};
+    use tokio::time::timeout;
+
+    #[tokio::test]
+    async fn publishes_snapshots_and_tracks_the_last_trade_price() {
+        let (command_sender, command_receiver) = mpsc::channel(2);
+        let (broadcast_sender, mut broadcast_receiver) = broadcast::channel(2);
+        let (latest_event_sender, latest_event_receiver) = watch::channel(None);
+
+        let task = tokio::spawn(run_engine_task(
+            command_receiver,
+            broadcast_sender,
+            latest_event_sender,
+            Engine::default(),
+        ));
+
+        command_sender
+            .send(CommandIntent::SubmitOrder {
+                quantity: Qty(5),
+                side: Side::Sell,
+                order_type: OrderType::Limit(Price(100)),
+            })
+            .await
+            .expect("engine task should accept a limit order");
+
+        let event = timeout(Duration::from_secs(1), broadcast_receiver.recv())
+            .await
+            .expect("engine task should publish an event")
+            .expect("broadcast channel should remain open");
+        assert_eq!(event.last_price, None);
+        assert!(event.snapshot.bids.is_empty());
+        assert_eq!(event.snapshot.asks.len(), 1);
+        assert_eq!(event.snapshot.asks[0].price, Price(100));
+        assert_eq!(event.snapshot.asks[0].quantity, Qty(5));
+
+        command_sender
+            .send(CommandIntent::SubmitOrder {
+                quantity: Qty(2),
+                side: Side::Buy,
+                order_type: OrderType::Market,
+            })
+            .await
+            .expect("engine task should accept a market order");
+
+        let event = timeout(Duration::from_secs(1), broadcast_receiver.recv())
+            .await
+            .expect("engine task should publish an event")
+            .expect("broadcast channel should remain open");
+        assert_eq!(event.last_price, Some(Price(100)));
+        assert!(event.snapshot.bids.is_empty());
+        assert_eq!(event.snapshot.asks.len(), 1);
+        assert_eq!(event.snapshot.asks[0].price, Price(100));
+        assert_eq!(event.snapshot.asks[0].quantity, Qty(3));
+
+        // check latest event available
+        {
+            let latest_event = latest_event_receiver.borrow();
+            let latest_event = latest_event
+                .as_ref()
+                .expect("watch channel should contain the latest event");
+            assert_eq!(latest_event.last_price, Some(Price(100)));
+            assert_eq!(latest_event.snapshot, event.snapshot);
+        }
+
+        drop(command_sender);
+        timeout(Duration::from_secs(1), task)
+            .await
+            .expect("engine task should stop when the command channel closes")
+            .expect("engine task should not panic");
+    }
+}
