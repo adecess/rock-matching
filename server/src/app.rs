@@ -92,7 +92,24 @@ pub(crate) async fn run(config: AppConfig) -> Result<(), Box<dyn Error>> {
 }
 
 async fn shutdown_signal(shutdown: CancellationToken) {
-    let _ = tokio::signal::ctrl_c().await;
+    let ctrl_c = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("failed to install SIGTERM handler")
+            .recv()
+            .await;
+    };
+
+    tokio::select! {
+        () = ctrl_c => {}
+        () = terminate => {}
+    }
+
     println!("shutdown requested");
     shutdown.cancel();
 }
