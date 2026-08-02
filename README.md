@@ -11,6 +11,7 @@ At a high level, it provides two main components:
 
 [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE-MIT)
 [![Apache-2.0 licensed](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE-APACHE)
+[![Build Status](https://github.com/adecess/rock-matching/actions/workflows/ci.yml/badge.svg)](https://github.com/adecess/rock-matching/actions/workflows/ci.yml)
 
 # Get started
 
