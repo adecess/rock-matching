@@ -6,6 +6,7 @@ pub(crate) struct AppConfig {
     pub(crate) bind_address: SocketAddr,
     pub(crate) event_channel_capacity: usize,
     pub(crate) command_channel_capacity: usize,
+    pub(crate) max_websocket_connections: usize,
     pub(crate) maker: MakerBotConfig,
     pub(crate) taker: TakerBotConfig,
 }
@@ -18,6 +19,9 @@ impl AppConfig {
         if self.command_channel_capacity == 0 {
             return Err("command channel capacity must be greater than zero");
         }
+        if self.max_websocket_connections == 0 {
+            return Err("maximum websocket connections must be greater than zero");
+        }
 
         Ok(self)
     }
@@ -29,6 +33,7 @@ impl Default for AppConfig {
             bind_address: SocketAddr::from(([0, 0, 0, 0], 3000)),
             event_channel_capacity: 16,
             command_channel_capacity: 100,
+            max_websocket_connections: 100,
             maker: MakerBotConfig {
                 reference_price: Price(100),
                 max_bid_distance: Price(10),
@@ -58,6 +63,7 @@ mod tests {
         assert_eq!(config.bind_address, SocketAddr::from(([0, 0, 0, 0], 3000)));
         assert_eq!(config.event_channel_capacity, 16);
         assert_eq!(config.command_channel_capacity, 100);
+        assert_eq!(config.max_websocket_connections, 100);
 
         assert_eq!(config.maker.reference_price, Price(100));
         assert_eq!(config.maker.max_bid_distance, Price(10));
@@ -73,7 +79,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_zero_channel_capacities() {
+    fn rejects_zero_capacities_and_limits() {
         let event_capacity_error = AppConfig {
             event_channel_capacity: 0,
             ..AppConfig::default()
@@ -94,6 +100,17 @@ mod tests {
         assert_eq!(
             command_capacity_error,
             Some("command channel capacity must be greater than zero")
+        );
+
+        let websocket_connection_limit_error = AppConfig {
+            max_websocket_connections: 0,
+            ..AppConfig::default()
+        }
+        .validate()
+        .err();
+        assert_eq!(
+            websocket_connection_limit_error,
+            Some("maximum websocket connections must be greater than zero")
         );
     }
 }

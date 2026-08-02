@@ -5,8 +5,8 @@ Rock matching is a simple one-asset trading engine.
 At a high level, it provides two main components:
 
 - A self-contained engine library responsible for matching incoming limit and market orders.
-- An HTTP server that runs maker/taker bots and gives clients access to outgoing trade events through a websocket
-  connection.
+- An HTTP server binary that runs maker/taker bots, sends their orders to the engine and gives clients access to
+  outgoing trade events through a websocket connection.
 
 [![MIT licensed](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE-MIT)
 [![Apache-2.0 licensed](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE-APACHE)

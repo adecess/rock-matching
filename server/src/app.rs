@@ -8,7 +8,8 @@ use crate::terminal_view::run_terminal_view;
 use crate::types::{CommandIntent, ServerEvent};
 use rock_matching_engine::Engine;
 use std::error::Error;
-use tokio::sync::{broadcast, mpsc, watch};
+use std::sync::Arc;
+use tokio::sync::{Semaphore, broadcast, mpsc, watch};
 use tokio_util::sync::CancellationToken;
 
 pub(crate) async fn run(config: AppConfig) -> Result<(), Box<dyn Error>> {
@@ -24,10 +25,12 @@ pub(crate) async fn run(config: AppConfig) -> Result<(), Box<dyn Error>> {
     let (latest_event_sender, latest_event_receiver) = watch::channel(None::<ServerEvent>);
     let (command_sender, command_receiver) =
         mpsc::channel::<CommandIntent>(config.command_channel_capacity);
+    let websocket_connection_semaphore = Arc::new(Semaphore::new(config.max_websocket_connections));
 
     let app = router(AppState {
         server_broadcast_sender: broadcast_sender.clone(),
         server_latest_event_receiver: latest_event_receiver,
+        websocket_connection_semaphore,
     });
 
     let terminal_handle = tokio::spawn(async move { run_terminal_view(broadcast_receiver).await });
