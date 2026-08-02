@@ -1,6 +1,5 @@
 # Overview
 
----
 Rock matching is a simple one-asset trading engine.
 
 At a high level, it provides two main components:
