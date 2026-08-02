@@ -5,7 +5,7 @@ target/
 .idea/
 .env
 .env.*
-Caddyfile
+deploy/Caddyfile
 compose*.yaml
 Dockerfile
 .dockerignore
