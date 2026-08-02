@@ -1,3 +1,5 @@
 /target
 .env.production
+production.env
+deploy/.env.production
 .idea
