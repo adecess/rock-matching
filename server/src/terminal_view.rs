@@ -10,11 +10,11 @@ pub(crate) async fn run_terminal_view(receiver: broadcast::Receiver<ServerEvent>
 
 async fn consume_server_events<F>(mut receiver: broadcast::Receiver<ServerEvent>, mut consume: F)
 where
-    F: FnMut(&ServerEvent),
+    F: FnMut(ServerEvent),
 {
     loop {
         match receiver.recv().await {
-            Ok(server_event) => consume(&server_event),
+            Ok(server_event) => consume(server_event),
             Err(RecvError::Lagged(messages)) => {
                 eprintln!("terminal listener skipped {messages} messages");
             }
@@ -23,7 +23,7 @@ where
     }
 }
 
-fn print_server_event(server_event: &ServerEvent) {
+fn print_server_event(server_event: ServerEvent) {
     println!(
         "bids: {:?}, asks: {:?}, last_price: {:?}",
         format_levels(&server_event.snapshot.bids),
