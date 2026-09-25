@@ -29,6 +29,7 @@ mod tests {
             server_broadcast_sender,
             server_latest_event_receiver,
             websocket_connection_semaphore: Semaphore::new(1).into(),
+            allowed_origins: vec!["http://localhost:5173".to_owned()].into(),
         };
 
         let response = router(state)

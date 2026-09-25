@@ -2,7 +2,8 @@ use crate::state::AppState;
 use crate::types::ServerEvent;
 use axum::extract::ws::{CloseFrame, Message, WebSocket, close_code};
 use axum::extract::{State, WebSocketUpgrade};
-use axum::http::StatusCode;
+use axum::http::header::ORIGIN;
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use tokio::sync::broadcast::Receiver;
 use tokio::sync::broadcast::error::RecvError;
@@ -24,7 +25,12 @@ enum ClientMessageAction {
 pub(crate) async fn websocket_handler(
     ws: WebSocketUpgrade,
     State(state): State<AppState>,
+    headers: HeaderMap,
 ) -> Response {
+    if !origin_allowed(&headers, &state.allowed_origins) {
+        return (StatusCode::FORBIDDEN, "websocket origin not allowed").into_response();
+    }
+
     let connection_permit = match acquire_connection_permit(&state) {
         Ok(permit) => permit,
         Err(_) => {
@@ -53,6 +59,18 @@ pub(crate) async fn websocket_handler(
                 connection_permit,
             )
         })
+}
+
+fn origin_allowed(headers: &HeaderMap, allowed_origins: &[String]) -> bool {
+    let mut origins = headers.get_all(ORIGIN).iter();
+    let Some(origin) = origins.next() else {
+        return false;
+    };
+
+    origins.next().is_none()
+        && allowed_origins
+            .iter()
+            .any(|allowed| allowed.as_bytes() == origin.as_bytes())
 }
 
 fn acquire_connection_permit(state: &AppState) -> Result<OwnedSemaphorePermit, TryAcquireError> {
@@ -155,6 +173,7 @@ mod tests {
             server_broadcast_sender,
             server_latest_event_receiver,
             websocket_connection_semaphore: Semaphore::new(limit).into(),
+            allowed_origins: vec!["http://localhost:5173".to_owned()].into(),
         }
     }
 
@@ -196,5 +215,23 @@ mod tests {
             client_message_action(&Message::Binary(Vec::new().into())),
             ClientMessageAction::Reject
         );
+    }
+
+    #[test]
+    fn only_accepts_a_single_configured_origin() {
+        let allowed = ["https://app.example.com".to_owned()];
+        let mut headers = HeaderMap::new();
+        headers.insert(ORIGIN, "https://app.example.com".parse().unwrap());
+        assert!(origin_allowed(&headers, &allowed));
+
+        headers.insert(ORIGIN, "https://other.example.com".parse().unwrap());
+        assert!(!origin_allowed(&headers, &allowed));
+
+        headers.remove(ORIGIN);
+        assert!(!origin_allowed(&headers, &allowed));
+
+        headers.append(ORIGIN, "https://app.example.com".parse().unwrap());
+        headers.append(ORIGIN, "https://app.example.com".parse().unwrap());
+        assert!(!origin_allowed(&headers, &allowed));
     }
 }

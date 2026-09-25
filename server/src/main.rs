@@ -12,5 +12,5 @@ use crate::config::AppConfig;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    app::run(AppConfig::default()).await
+    app::run(AppConfig::from_env()?).await
 }
