@@ -3,6 +3,7 @@ use rock_matching_engine::{Command, Engine, Event, Timestamp};
 use tokio::sync::broadcast::Sender;
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::watch;
+use tracing::error;
 
 pub(crate) async fn run_engine_task(
     mut mpsc_receiver: Receiver<CommandIntent>,
@@ -34,7 +35,7 @@ pub(crate) async fn run_engine_task(
                 let _ = broadcast_sender.send(server_event);
             }
             Err(error) => {
-                eprintln!("failed to apply command: {error:?}");
+                error!(%error, "failed to apply command");
             }
         }
     }
