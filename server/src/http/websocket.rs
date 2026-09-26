@@ -8,6 +8,7 @@ use axum::response::{IntoResponse, Response};
 use tokio::sync::broadcast::Receiver;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::{OwnedSemaphorePermit, TryAcquireError, watch};
+use tracing::{debug, info, warn};
 
 const WEBSOCKET_READ_BUFFER_SIZE: usize = 4 * 1024;
 const WEBSOCKET_WRITE_BUFFER_SIZE: usize = 16 * 1024;
@@ -34,6 +35,7 @@ pub(crate) async fn websocket_handler(
     let connection_permit = match acquire_connection_permit(&state) {
         Ok(permit) => permit,
         Err(_) => {
+            warn!("websocket connection limit reached");
             return (
                 StatusCode::SERVICE_UNAVAILABLE,
                 "websocket connection limit reached",
@@ -50,7 +52,7 @@ pub(crate) async fn websocket_handler(
         .max_message_size(MAX_WEBSOCKET_MESSAGE_SIZE)
         .max_frame_size(MAX_WEBSOCKET_FRAME_SIZE)
         .max_write_buffer_size(MAX_WEBSOCKET_WRITE_BUFFER_SIZE)
-        .on_failed_upgrade(|error| println!("Error upgrading websocket: {}", error))
+        .on_failed_upgrade(|error| warn!(%error, "websocket upgrade failed"))
         .on_upgrade(|socket| {
             handle_socket(
                 socket,
@@ -86,6 +88,7 @@ async fn handle_socket(
     latest_event_receiver: watch::Receiver<Option<ServerEvent>>,
     _connection_permit: OwnedSemaphorePermit,
 ) {
+    info!("websocket connected");
     // Send the latest snapshot immediately on connection
     let latest_event = latest_event_receiver.borrow().clone();
     if let Some(latest_event) = latest_event {
@@ -94,7 +97,8 @@ async fn handle_socket(
             .await;
 
         if let Err(error) = result {
-            println!("Error sending latest event: {}", error);
+            debug!(%error, "failed to send latest event");
+            info!("websocket disconnected");
             return;
         }
     }
@@ -110,7 +114,7 @@ async fn handle_socket(
                         .await;
 
                         if let Err(error) = result {
-                            println!("Error sending: {}", error);
+                            debug!(%error, "failed to send event");
                             break;
                         }
 
@@ -120,7 +124,7 @@ async fn handle_socket(
                         break;
                     },
                     Err(RecvError::Lagged(messages)) => {
-                        println!("receiver lagged too far behind, {} messages skipped", messages);
+                        warn!(messages, "websocket receiver skipped events");
                     }
                 }
             }
@@ -136,13 +140,13 @@ async fn handle_socket(
                                 reason: "client data messages are not supported".into(),
                             }));
                             if let Err(error) = socket.send(close).await {
-                                println!("Error rejecting client message: {error}");
+                                debug!(%error, "failed to reject client message");
                             }
                             break;
                         }
                     },
                     Some(Err(error)) => {
-                        println!("Error receiving websocket message: {error}");
+                        debug!(%error, "failed to receive websocket message");
                         break;
                     }
                     None => break,
@@ -150,6 +154,8 @@ async fn handle_socket(
             }
         }
     }
+
+    info!("websocket disconnected");
 }
 
 fn client_message_action(message: &Message) -> ClientMessageAction {
