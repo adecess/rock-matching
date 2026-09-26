@@ -31,6 +31,7 @@ pub(crate) async fn run(config: AppConfig) -> Result<(), Box<dyn Error>> {
         server_broadcast_sender: broadcast_sender.clone(),
         server_latest_event_receiver: latest_event_receiver,
         websocket_connection_semaphore,
+        allowed_origins: config.allowed_origins.into(),
     });
 
     let terminal_handle = tokio::spawn(async move { run_terminal_view(broadcast_receiver).await });
