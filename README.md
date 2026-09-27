@@ -19,3 +19,22 @@ git clone https://github.com/adecess/rock-matching.git
 cd rock-matching
 cargo run
 ```
+
+# Runtime Settings
+
+`ROCK_BINDING_ADDRESS` defaults to `0.0.0.0:3000` unless specified.
+`ROCK_ALLOWED_ORIGINS` contains frontend HTTPS origins, with local Vite origins as defaults.
+`RUST_LOG` defaults to `info` and is optional.
+
+The deployed frontend origin must be supplied.
+
+⚠️ The backend's WSS URL is not an origin value ⚠️
+
+# Websocket
+
+`/ws` is a read-only websocket that returns the latest order book snapshot when connected and streams all updates. It
+requires an allowed Origin header and incoming client messages are rejected.
+
+# Networking
+
+Caddy is the public facing server.
