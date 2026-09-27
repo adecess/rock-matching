@@ -22,7 +22,7 @@ cargo run
 
 # Runtime Settings
 
-`ROCK_BINDING_ADDRESS` defaults to `0.0.0.0:3000` unless specified.
+`ROCK_BIND_ADDRESS` defaults to `0.0.0.0:3000` unless specified.
 `ROCK_ALLOWED_ORIGINS` contains frontend HTTPS origins, with local Vite origins as defaults.
 `RUST_LOG` defaults to `info` and is optional.
 
@@ -32,8 +32,8 @@ The deployed frontend origin must be supplied.
 
 # Websocket
 
-`/ws` is a read-only websocket that returns the latest order book snapshot when connected and streams all updates. It
-requires an allowed Origin header and incoming client messages are rejected.
+`/ws` is a read-only websocket that returns the latest order book snapshot when connected and streams updates. It
+requires an allowed Origin header and incoming client data messages are rejected.
 
 # Networking
 
