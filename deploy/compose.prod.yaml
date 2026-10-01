@@ -6,6 +6,11 @@ services:
     platform: linux/amd64
     restart: unless-stopped
 
+    environment:
+      ROCK_BIND_ADDRESS: "${ROCK_BIND_ADDRESS:-0.0.0.0:3000}"
+      ROCK_ALLOWED_ORIGINS: "${ROCK_ALLOWED_ORIGINS:?Set ROCK_ALLOWED_ORIGINS to the frontend HTTPS origin in .env.production}"
+      RUST_LOG: "${RUST_LOG:-info}"
+
     user: "65532:65532"
     read_only: true
 
