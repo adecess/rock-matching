@@ -66,7 +66,7 @@ pub(crate) async fn run(config: AppConfig) -> Result<(), Box<dyn Error>> {
 
     match maker_handle.await {
         Ok(Ok(())) => debug!("maker stopped"),
-        Ok(Err(error)) => error!(%error, "maker failed to send command"),
+        Ok(Err(error)) => error!(%error, "maker bot failed"),
         Err(error) => error!(%error, "maker task failed"),
     }
 

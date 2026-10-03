@@ -1,5 +1,8 @@
-use rock_matching_engine::{BookSnapshot, OrderId, OrderType, Price, Qty, Side};
+use rock_matching_engine::{ApplyError, BookSnapshot, OrderId, OrderType, Price, Qty, Side};
 use serde::Serialize;
+use tokio::sync::oneshot;
+
+pub(crate) type SubmissionReply = oneshot::Sender<Result<Option<OrderId>, ApplyError>>;
 
 #[derive(Debug, Clone, Serialize)]
 pub(crate) struct ServerEvent {
@@ -12,9 +15,11 @@ pub(crate) enum CommandIntent {
         quantity: Qty,
         side: Side,
         order_type: OrderType,
+        reply: Option<SubmissionReply>,
     },
-    #[allow(dead_code)]
-    CancelOrder { order_id: OrderId },
+    CancelOrder {
+        order_id: OrderId,
+    },
 }
 
 pub(crate) struct MakerBotConfig {
