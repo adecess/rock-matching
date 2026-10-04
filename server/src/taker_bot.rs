@@ -55,6 +55,7 @@ pub(crate) async fn run_taker_bot(
                     quantity,
                     side: next_side,
                     order_type: Market,
+                    reply: None,
                 })
                 .await?;
 
@@ -139,6 +140,7 @@ mod tests {
             quantity,
             side,
             order_type,
+            reply: _,
         } = command
         else {
             panic!("taker should submit an order");
