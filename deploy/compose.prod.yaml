@@ -39,7 +39,7 @@ services:
         max-file: "3"
 
   caddy:
-    image: caddy:2.11.4-alpine
+    image: caddy:2.11.7-alpine
     restart: unless-stopped
 
     depends_on:
